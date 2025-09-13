@@ -1,6 +1,8 @@
+from typing import Callable, Awaitable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp
 import structlog
 
 logger = structlog.get_logger()
@@ -9,7 +11,7 @@ logger = structlog.get_logger()
 class AuthMiddleware(BaseHTTPMiddleware):
     """Middleware to handle API key authentication."""
 
-    def __init__(self, app):
+    def __init__(self, app: ASGIApp) -> None:
         super().__init__(app)
         # Paths that don't require authentication
         self.public_paths = {
@@ -19,7 +21,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
         }
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         """Process request and validate API key."""
 
         # Skip auth for public paths

@@ -2,7 +2,8 @@ from fastapi import Depends, Request, HTTPException
 from typing import AsyncGenerator
 
 from src.domain.entities.tenant import Tenant
-from src.infrastructure.persistence.database import get_db, AsyncSession
+from src.infrastructure.persistence.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.infrastructure.persistence.repositories.tenant_repository import TenantRepository
 from src.services.tenant_service import TenantService
 from src.infrastructure.ai.openai_client import OpenAIClientWrapper

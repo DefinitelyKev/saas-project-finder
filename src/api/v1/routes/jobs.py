@@ -32,8 +32,8 @@ async def get_job_status(
                 "usage": {"total_tokens": 150}
             },
             error_message=None,
-            created_at=tenant.created_at,
-            completed_at=tenant.created_at,
+            created_at=tenant.created_at.isoformat(),
+            completed_at=tenant.created_at.isoformat(),
             progress_percentage=100,
         )
 

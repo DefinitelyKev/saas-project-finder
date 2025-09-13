@@ -1,12 +1,11 @@
+from typing import Dict, List, Callable, Awaitable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp
 import structlog
 import time
-from typing import Dict, List
 import asyncio
-
-from src.domain.exceptions import RateLimitExceeded
 
 logger = structlog.get_logger()
 
@@ -14,7 +13,7 @@ logger = structlog.get_logger()
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Middleware to handle rate limiting per tenant."""
 
-    def __init__(self, app):
+    def __init__(self, app: ASGIApp) -> None:
         super().__init__(app)
         # In-memory rate limiting (in production, use Redis)
         self.request_counts: Dict[str, List[float]] = {}
@@ -28,7 +27,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
         }
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         """Process request and apply rate limiting."""
 
         # Skip rate limiting for exempt paths

@@ -34,7 +34,7 @@ class Session:
     max_tokens: int = 4000
     session_timeout_hours: int = 24
 
-    def add_message(self, role: str, content: str, token_count: int = 0, tool_calls: List[Dict[str, Any]] = None) -> None:
+    def add_message(self, role: str, content: str, token_count: int = 0, tool_calls: Optional[List[Dict[str, Any]]] = None) -> None:
         """Add a message to the session."""
         if tool_calls is None:
             tool_calls = []

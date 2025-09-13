@@ -58,6 +58,7 @@ async def list_agents(
                     parameters_schema=agent.parameters_schema,
                     max_tokens=agent.max_tokens,
                     temperature=agent.temperature,
+                    is_active=agent.is_active,
                     total_executions=agent.total_executions,
                     success_rate=agent.success_rate,
                 )
@@ -116,6 +117,7 @@ async def get_agent(
             parameters_schema=agent.parameters_schema,
             max_tokens=agent.max_tokens,
             temperature=agent.temperature,
+            is_active=agent.is_active,
             total_executions=agent.total_executions,
             success_rate=agent.success_rate,
         )
@@ -175,9 +177,9 @@ async def execute_agent(
             error_message=execution.error_message,
             token_usage=execution.token_usage,
             execution_time_ms=execution.execution_time_ms,
-            created_at=execution.created_at,
-            started_at=execution.started_at,
-            completed_at=execution.completed_at,
+            created_at=execution.created_at.isoformat(),
+            started_at=execution.started_at.isoformat() if execution.started_at else None,
+            completed_at=execution.completed_at.isoformat() if execution.completed_at else None,
         )
 
         logger.info("Agent executed successfully",

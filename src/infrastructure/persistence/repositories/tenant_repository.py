@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, cast
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -141,7 +141,7 @@ class TenantRepository:
         """Convert database model to domain entity."""
 
         return Tenant(
-            id=model.id,
+            id=cast(UUID, model.id),
             name=model.name,
             api_key_hash=model.api_key_hash,
             tier=TenantTier(model.tier),

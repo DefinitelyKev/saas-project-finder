@@ -44,12 +44,13 @@ async def create_session(
             id=str(session.id),
             tenant_id=str(session.tenant_id),
             agent_id=session.agent_id,
+            messages=[],  # Empty for new session
+            metadata=session.metadata,
             message_count=len(session.messages),
             total_tokens_used=session.total_tokens_used,
-            created_at=session.created_at,
-            last_activity=session.last_activity,
+            created_at=session.created_at.isoformat(),
+            last_activity=session.last_activity.isoformat(),
             is_active=session.is_active and not session.is_expired(),
-            metadata=session.metadata,
         )
 
         logger.info("Session created",
@@ -83,12 +84,13 @@ async def get_session(
             id=session_id,
             tenant_id=str(tenant.id),
             agent_id="customer-support",
+            messages=[],  # Empty mock messages
+            metadata={},
             message_count=0,
             total_tokens_used=0,
-            created_at=tenant.created_at,
-            last_activity=tenant.created_at,
+            created_at=tenant.created_at.isoformat(),
+            last_activity=tenant.created_at.isoformat(),
             is_active=True,
-            metadata={},
         )
 
     except Exception as e:

@@ -1,6 +1,8 @@
-from typing import Dict, Any, List, Optional, AsyncGenerator
+from typing import Dict, Any, List, Optional, AsyncGenerator, cast
 import json
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessage, ChatCompletion
+from openai.types import CompletionUsage
 import structlog
 
 from src.config.settings import settings
@@ -37,21 +39,26 @@ class OpenAIClientWrapper:
             tools = self._prepare_tools(agent)
 
             # Make API call
-            response = await self.client.chat.completions.create(
-                model=agent.model,
-                messages=messages,
-                tools=tools if tools else None,
-                max_tokens=agent.max_tokens,
-                temperature=agent.temperature,
-                stream=stream,
-            )
+            call_params = {
+                "model": agent.model,
+                "messages": cast(Any, messages),  # Cast to handle type compatibility
+                "max_tokens": agent.max_tokens,
+                "temperature": agent.temperature,
+                "stream": stream,
+            }
+            if tools:
+                call_params["tools"] = cast(Any, tools)
+
+            response = await self.client.chat.completions.create(**call_params)
 
             if stream:
                 return {"response": response, "streaming": True}
             else:
+                # Cast to regular completion for non-streaming
+                completion = cast(ChatCompletion, response)
                 # Extract response data
-                message = response.choices[0].message
-                usage = response.usage
+                message = completion.choices[0].message
+                usage = completion.usage or CompletionUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0)
 
                 result = {
                     "content": message.content,
@@ -61,7 +68,7 @@ class OpenAIClientWrapper:
                         "completion_tokens": usage.completion_tokens,
                         "total_tokens": usage.total_tokens,
                     },
-                    "model": response.model,
+                    "model": completion.model,
                     "streaming": False,
                 }
 
@@ -83,14 +90,17 @@ class OpenAIClientWrapper:
         tools = self._prepare_tools(agent)
 
         try:
-            stream = await self.client.chat.completions.create(
-                model=agent.model,
-                messages=messages,
-                tools=tools if tools else None,
-                max_tokens=agent.max_tokens,
-                temperature=agent.temperature,
-                stream=True,
-            )
+            call_params = {
+                "model": agent.model,
+                "messages": cast(Any, messages),  # Cast to handle type compatibility
+                "max_tokens": agent.max_tokens,
+                "temperature": agent.temperature,
+                "stream": True,
+            }
+            if tools:
+                call_params["tools"] = cast(Any, tools)
+
+            stream = await self.client.chat.completions.create(**call_params)
 
             async for chunk in stream:
                 if chunk.choices[0].delta.content:
@@ -178,7 +188,7 @@ class OpenAIClientWrapper:
 
         return tool_calls
 
-    async def count_tokens(self, text: str, model: str = None) -> int:
+    async def count_tokens(self, text: str, model: Optional[str] = None) -> int:
         """Estimate token count for text."""
         # Simple estimation - in production would use tiktoken
         # Rough estimate: 1 token ≈ 4 characters for English text

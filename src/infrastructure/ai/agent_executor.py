@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional, AsyncGenerator
 import json
 import structlog
 from datetime import datetime
+from openai.types import CompletionUsage
 
 from src.domain.entities.agent import Agent
 from src.domain.entities.execution import Execution
@@ -225,12 +226,13 @@ class AgentExecutor:
 
             # Update response with final result
             final_message = final_response.choices[0].message
+            final_usage = final_response.usage or CompletionUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0)
             response.update({
                 "content": final_message.content,
                 "usage": {
-                    "prompt_tokens": response["usage"]["prompt_tokens"] + final_response.usage.prompt_tokens,
-                    "completion_tokens": response["usage"]["completion_tokens"] + final_response.usage.completion_tokens,
-                    "total_tokens": response["usage"]["total_tokens"] + final_response.usage.total_tokens,
+                    "prompt_tokens": response["usage"]["prompt_tokens"] + final_usage.prompt_tokens,
+                    "completion_tokens": response["usage"]["completion_tokens"] + final_usage.completion_tokens,
+                    "total_tokens": response["usage"]["total_tokens"] + final_usage.total_tokens,
                 },
                 "tool_results": tool_results,
             })

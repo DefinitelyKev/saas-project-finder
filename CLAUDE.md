@@ -272,12 +272,12 @@ All API errors return consistent JSON:
 
 ### Code Quality Tools
 
-- **Black**: Code formatting (88 character line length)
+- **Black**: Code formatting (120 character line length)
 - **isort**: Import sorting
 - **pyright**: Strict type checking (required - matches Pylance)
 - **pytest**: Testing framework with async support
 
-### Strict Typing Standards
+### Code Quality Standards
 
 When making any code changes:
 
@@ -286,6 +286,7 @@ When making any code changes:
 3. Use `from typing import` for complex types like `Dict`, `List`, `Optional`, `Union`
 4. Run `pyright src/` before submitting changes
 5. Fix all type errors - no `# type: ignore` comments without justification
+6. **Keep code simple and clean - don't overcomplicate things**
 
 ## Environment Variables
 

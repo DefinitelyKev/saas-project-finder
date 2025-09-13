@@ -11,6 +11,7 @@ from src.api.v1.dependencies import get_tenant_service, get_current_tenant
 from src.services.tenant_service import TenantService
 from src.domain.entities.tenant import Tenant
 from src.domain.exceptions import DomainException
+from src.config.constants import TenantTier
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -26,7 +27,7 @@ async def register_tenant(
     try:
         tenant, api_key = await tenant_service.create_tenant(
             name=request.name,
-            tier=request.tier,
+            tier=TenantTier(request.tier),
             allowed_agents=request.allowed_agents or [],
         )
 

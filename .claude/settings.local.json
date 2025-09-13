@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(mypy:*)",
+      "Bash(poetry run mypy:*)",
+      "Bash(cd:*)",
+      "Bash(source:*)",
+      "Bash(python:*)",
+      "Bash(xargs:*)",
+      "Bash(.venv/Scripts/activate)",
+      "Bash(pyright:*)",
+      "Read(//mnt/c/Users/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

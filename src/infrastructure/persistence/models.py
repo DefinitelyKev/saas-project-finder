@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from uuid import uuid4
 from sqlalchemy import String, Text, Integer, Float, Boolean, DateTime, JSON
 from sqlalchemy.dialects.postgresql import UUID
@@ -17,7 +17,7 @@ class TenantModel(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     api_key_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     tier: Mapped[str] = mapped_column(String(50), nullable=False, default="free")
-    allowed_agents: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False, default=list)
+    allowed_agents: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
     monthly_tokens_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     current_month: Mapped[str] = mapped_column(String(7), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
