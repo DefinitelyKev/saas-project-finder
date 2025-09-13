@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 import structlog
 
@@ -81,7 +81,7 @@ class TenantService:
                     tokens_used=tokens_used,
                     total_usage=tenant.monthly_tokens_used)
 
-    async def get_tenant_usage(self, tenant_id: str) -> dict:
+    async def get_tenant_usage(self, tenant_id: str) -> Dict[str, Any]:
         """Get tenant usage statistics."""
 
         tenant = await self.tenant_repository.get_by_id(tenant_id)

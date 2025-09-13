@@ -40,3 +40,9 @@ def get_agent_executor(
 ) -> AgentExecutor:
     """Dependency to get agent executor."""
     return AgentExecutor(openai_client, tool_executor)
+
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency to get database session - alias for get_db."""
+    async for session in get_db():
+        yield session

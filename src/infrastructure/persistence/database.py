@@ -44,3 +44,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get database session."""
     async with get_db_session() as session:
         yield session
+
+
+def get_async_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Get the async session factory."""
+    return AsyncSessionLocal

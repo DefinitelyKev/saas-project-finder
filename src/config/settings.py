@@ -1,6 +1,6 @@
-from typing import Optional, List, Dict, Any
-from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from typing import Optional, List, Dict, Any, Union
+from pydantic import field_validator, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 
 
@@ -35,13 +35,19 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # CORS
-    allowed_origins: List[str] = ["http://localhost:3000"]
+    allowed_origins: Union[List[str], str] = ["http://localhost:3000"]
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_origins(cls, v: Any) -> List[str]:
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
+            # Handle comma-separated string
+            if v.strip():
+                return [origin.strip() for origin in v.split(",")]
+            else:
+                return []
+        elif isinstance(v, list):
+            return v
         return v
 
     @field_validator("debug", mode="before")
@@ -51,10 +57,11 @@ class Settings(BaseSettings):
             return v.lower() in ("true", "1", "yes", "on")
         return v
 
-    model_config = {
-        "env_file": ".env",
-        "case_sensitive": False,
-    }
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        env_parse_none_str="None"
+    )
 
 
 # Global settings instance

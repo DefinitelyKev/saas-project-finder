@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 import structlog
+from typing import Dict, Any
 
 from src.api.v1.schemas import (
     CreateTenantRequest,
@@ -81,7 +82,7 @@ async def get_tenant_usage(
     """Get current tenant usage statistics."""
 
     try:
-        usage_data = await tenant_service.get_tenant_usage(str(tenant.id))
+        usage_data: Dict[str, Any] = await tenant_service.get_tenant_usage(str(tenant.id))
         return UsageResponse(**usage_data)
 
     except DomainException as e:
@@ -96,7 +97,7 @@ async def get_tenant_usage(
 async def regenerate_api_key(
     tenant: Tenant = Depends(get_current_tenant),
     tenant_service: TenantService = Depends(get_tenant_service),
-) -> dict:
+) -> Dict[str, Any]:
     """Generate a new API key for the tenant."""
 
     try:

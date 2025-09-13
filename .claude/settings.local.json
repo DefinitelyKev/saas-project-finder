@@ -10,7 +10,15 @@
       "Bash(xargs:*)",
       "Bash(.venv/Scripts/activate)",
       "Bash(pyright:*)",
-      "Read(//mnt/c/Users/**)"
+      "Read(//mnt/c/Users/**)",
+      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m pyright src/)",
+      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m pyright src/ --outputjson)",
+      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -c \"from src.config.settings import settings; print(''Settings loaded successfully'')\")",
+      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000)",
+      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m pip install apscheduler)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker exec:*)",
+      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m alembic upgrade head)"
     ],
     "deny": [],
     "ask": []

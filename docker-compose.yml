@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ai-backend:
     build:
@@ -19,7 +17,7 @@ services:
       - postgres
       - redis
     volumes:
-      - ./src:/app/src  # For development - remove in production
+      - ./src:/app/src # For development - remove in production
     restart: unless-stopped
 
   postgres:

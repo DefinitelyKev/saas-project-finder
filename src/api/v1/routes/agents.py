@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 import structlog
 import json
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List, Dict, Any
 
 from src.api.v1.schemas import (
     AgentResponse,
@@ -31,7 +31,7 @@ async def list_agents(
 
     try:
         agent_configs = get_all_agent_configs()
-        available_agents = []
+        available_agents: List[AgentResponse] = []
 
         for agent_id, config in agent_configs.items():
             # Check if tenant has access to this agent
@@ -315,9 +315,9 @@ async def execute_agent_async(
 
 async def _execute_agent_background(
     job_id: str,
-    agent,
-    parameters: dict,
-    tenant,
+    agent: Any,
+    parameters: Dict[str, Any],
+    tenant: Any,
     agent_executor: AgentExecutor,
 ) -> None:
     """Background task for agent execution."""

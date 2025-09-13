@@ -16,8 +16,8 @@ This project uses a Python virtual environment with all required packages pre-in
 # Copy environment file and configure
 copy .env.example .env
 
-# Activate virtual environment
-.venv\Scripts\activate
+# Activate virtual environment (WSL)
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe"
 
 # Start all services
 docker-compose up -d
@@ -37,27 +37,27 @@ python scripts/create_tenant.py
 Pyright for local type checking:
 
 ```cmd
-pyright src/
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pyright src/
 ```
 
 ### Development Workflow
 
 ```cmd
 # Development server
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 # Testing
-pytest tests/ -v
-pytest tests/ --cov=src --cov-report=html --cov-report=term
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pytest tests/ -v
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pytest tests/ --cov=src --cov-report=html --cov-report=term
 
 # Code formatting
-black src/
-isort src/
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m black src/
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m isort src/
 
 # Linting and type checking
-black src/ --check
-isort src/ --check-only
-pyright src/
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m black src/ --check
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m isort src/ --check-only
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pyright src/
 ```
 
 ### Docker Operations
@@ -81,15 +81,145 @@ docker-compose down
 
 ### Database Management
 
-```cmd
-# Run Alembic migrations
-alembic upgrade head
+#### Connecting to the Database
 
-# Reset database (destroys data!)
+There are multiple ways to connect and view your database:
+
+**1. pgAdmin Web Interface (Recommended)**
+```cmd
+# Start database services
+docker-compose up -d postgres pgadmin redis
+
+# Access pgAdmin at: http://localhost:5050
+# Login: admin@ai-backend.com / admin
+```
+
+**Connection details for pgAdmin:**
+- Host: `postgres` (or `localhost` from outside Docker)
+- Port: `5432`
+- Database: `ai_backend`
+- Username: `ai_user`
+- Password: `ai_password`
+
+**2. Command Line Access**
+```cmd
+# Connect to PostgreSQL directly
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend
+
+# List all databases
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "\l"
+
+# List all tables
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "\dt"
+
+# Describe table structure
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "\d table_name"
+
+# Query specific table
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "SELECT * FROM tenants LIMIT 5;"
+```
+
+#### Running Migrations
+
+**Method 1: Direct SQL Execution (Recommended)**
+```cmd
+# Create SQL file with your schema changes
+# Execute SQL script directly
+docker exec -i saas-project-finder-postgres-1 psql -U ai_user -d ai_backend < your_migration.sql
+
+# Example: Create basic tables
+docker exec -i saas-project-finder-postgres-1 psql -U ai_user -d ai_backend < create_tables.sql
+```
+
+**Method 2: Alembic Migrations**
+```cmd
+# Create new migration
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic revision --autogenerate -m "description of changes"
+
+# Run migrations (if alembic connection works)
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic upgrade head
+
+# View current migration status
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic current
+
+# View migration history
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic history
+```
+
+#### Database Operations
+
+**Reset database (destroys all data!)**
+```cmd
 docker-compose down -v
 docker-compose up -d postgres redis
 timeout 5
-alembic upgrade head
+# Re-run your table creation script
+docker exec -i saas-project-finder-postgres-1 psql -U ai_user -d ai_backend < create_tables.sql
+```
+
+**Backup database**
+```cmd
+# Create backup
+docker exec saas-project-finder-postgres-1 pg_dump -U ai_user -d ai_backend > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restore from backup
+docker exec -i saas-project-finder-postgres-1 psql -U ai_user -d ai_backend < backup_file.sql
+```
+
+**Insert sample data**
+```cmd
+# Add test tenant
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "
+INSERT INTO tenants (name, api_key_hash, current_month)
+VALUES ('Test Tenant', 'test123hash', '2025-09')
+ON CONFLICT DO NOTHING;"
+
+# Verify data
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "SELECT id, name, tier FROM tenants;"
+```
+
+#### Viewing Database Contents
+
+**Check table contents**
+```cmd
+# Count records in each table
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "
+SELECT 'tenants' as table_name, count(*) as count FROM tenants
+UNION ALL
+SELECT 'agents' as table_name, count(*) as count FROM agents
+UNION ALL
+SELECT 'executions' as table_name, count(*) as count FROM executions
+UNION ALL
+SELECT 'sessions' as table_name, count(*) as count FROM sessions
+UNION ALL
+SELECT 'usage_logs' as table_name, count(*) as count FROM usage_logs;"
+
+# View recent executions
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "
+SELECT e.id, t.name as tenant, e.agent_id, e.status, e.created_at
+FROM executions e
+JOIN tenants t ON e.tenant_id = t.id
+ORDER BY e.created_at DESC
+LIMIT 10;"
+```
+
+#### Database Health Checks
+
+**Monitor database status**
+```cmd
+# Check if database is running
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "SELECT version();"
+
+# Check database size
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "
+SELECT pg_database.datname, pg_size_pretty(pg_database_size(pg_database.datname)) AS size
+FROM pg_database;"
+
+# Check table sizes
+docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "
+SELECT schemaname,tablename,pg_size_pretty(pg_total_relation_size(tablename::text)) as size
+FROM pg_tables
+WHERE schemaname='public';"
 ```
 
 ## Architecture Overview
@@ -227,8 +357,8 @@ The agent execution flow:
 Use Alembic for database schema changes:
 
 ```bash
-alembic revision --autogenerate -m "Description"
-alembic upgrade head
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic revision --autogenerate -m "Description"
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic upgrade head
 ```
 
 ### Repository Pattern
@@ -277,14 +407,24 @@ All API errors return consistent JSON:
 - **pyright**: Strict type checking (required - matches Pylance)
 - **pytest**: Testing framework with async support
 
+### Virtual Environment Usage (WSL)
+
+**IMPORTANT**: Always use the full path to the Python executable when running Python commands:
+
+```bash
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe"
+```
+
+This ensures the virtual environment is used correctly in WSL without activation script issues.
+
 ### Code Quality Standards
 
 When making any code changes:
 
-1. Always activate the virtual environment first
+1. Always use the full virtual environment Python path
 2. Add proper type hints to all new functions and methods
 3. Use `from typing import` for complex types like `Dict`, `List`, `Optional`, `Union`
-4. Run `pyright src/` before submitting changes
+4. Run `"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pyright src/` before submitting changes
 5. Fix all type errors - no `# type: ignore` comments without justification
 6. **Keep code simple and clean - don't overcomplicate things**
 
