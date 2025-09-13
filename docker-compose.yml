@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  ai-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://ai_user:ai_password@postgres:5432/ai_backend
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-here}
+      - API_KEY_HASH_SALT=${API_KEY_HASH_SALT:-your-salt-here}
+      - ENVIRONMENT=development
+      - DEBUG=true
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./src:/app/src  # For development - remove in production
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=ai_backend
+      - POSTGRES_USER=ai_user
+      - POSTGRES_PASSWORD=ai_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Optional: Database admin interface
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@ai-backend.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
