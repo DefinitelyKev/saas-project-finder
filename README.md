@@ -41,6 +41,7 @@ cp .env.example .env
 ### 2. Configure Environment
 
 Edit `.env` file:
+
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
 JWT_SECRET=your_jwt_secret_here
@@ -49,29 +50,26 @@ API_KEY_HASH_SALT=your_salt_here
 
 ### 3. Start Services
 
-```bash
-# Start all services
-make docker-up
-
-# Or manually
+```cmd
 docker-compose up -d
 ```
 
 ### 4. Create a Test Tenant
 
-```bash
-# Create tenant and get API key
-make create-tenant
+```cmd
+python scripts/create_tenant.py
 ```
 
 ## 📚 API Endpoints
 
 ### Authentication
+
 - `POST /api/v1/auth/register` - Register new tenant
 - `GET /api/v1/auth/validate` - Validate API key
 - `GET /api/v1/auth/usage` - Get usage statistics
 
 ### Agents
+
 - `GET /api/v1/agents` - List available agents
 - `GET /api/v1/agents/{agent_id}` - Get agent details
 - `POST /api/v1/agents/{agent_id}/execute` - Execute agent (sync)
@@ -79,31 +77,37 @@ make create-tenant
 - `POST /api/v1/agents/{agent_id}/execute-async` - Execute agent (async)
 
 ### Sessions
+
 - `POST /api/v1/sessions` - Create conversation session
 - `GET /api/v1/sessions/{session_id}` - Get session info
 - `DELETE /api/v1/sessions/{session_id}` - Delete session
 
 ### Jobs
+
 - `GET /api/v1/jobs/{job_id}` - Get async job status
 
 ## 🤖 Available Agents
 
 ### Customer Support Agent (`customer-support`)
+
 - Analyzes customer inquiries and provides solutions
 - Tools: Knowledge base search, escalation to human agents
 - Best for: Support ticket automation, FAQ responses
 
 ### Data Analyst Agent (`data-analyst`)
+
 - Performs data analysis and generates insights
 - Tools: SQL queries, visualization creation
 - Best for: Business intelligence, reporting dashboards
 
 ### Content Writer Agent (`content-writer`)
+
 - Creates SEO-optimized content for marketing
 - Tools: Keyword research, competitor analysis
 - Best for: Blog posts, landing pages, product descriptions
 
 ### Code Reviewer Agent (`code-reviewer`)
+
 - Reviews code for quality, security, and best practices
 - Tools: Static analysis, improvement suggestions
 - Best for: Code quality automation, security audits
@@ -114,50 +118,50 @@ make create-tenant
 
 ```javascript
 // Customer Support SaaS
-const response = await fetch('https://ai-backend.com/api/v1/agents/customer-support/execute', {
-  method: 'POST',
+const response = await fetch("https://ai-backend.com/api/v1/agents/customer-support/execute", {
+  method: "POST",
   headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': 'your-tenant-api-key'
+    "Content-Type": "application/json",
+    "X-API-Key": "your-tenant-api-key",
   },
   body: JSON.stringify({
     parameters: {
       customer_message: "I can't log into my account",
-      customer_tier: "pro"
-    }
-  })
+      customer_tier: "pro",
+    },
+  }),
 });
 ```
 
 ```javascript
 // Content Generation SaaS
-const response = await fetch('https://ai-backend.com/api/v1/agents/content-writer/execute', {
-  method: 'POST',
+const response = await fetch("https://ai-backend.com/api/v1/agents/content-writer/execute", {
+  method: "POST",
   headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': 'your-tenant-api-key'
+    "Content-Type": "application/json",
+    "X-API-Key": "your-tenant-api-key",
   },
   body: JSON.stringify({
     parameters: {
       content_type: "blog_post",
       topic: "AI in Healthcare",
       target_keywords: ["medical AI", "healthcare automation"],
-      word_count: 1500
-    }
-  })
+      word_count: 1500,
+    },
+  }),
 });
 ```
 
 ### Streaming Response
 
 ```javascript
-const response = await fetch('/api/v1/agents/content-writer/execute-stream', {
-  method: 'POST',
+const response = await fetch("/api/v1/agents/content-writer/execute-stream", {
+  method: "POST",
   headers: {
-    'X-API-Key': 'your-api-key',
-    'Content-Type': 'application/json'
+    "X-API-Key": "your-api-key",
+    "Content-Type": "application/json",
   },
-  body: JSON.stringify({ parameters: { topic: "AI Trends" } })
+  body: JSON.stringify({ parameters: { topic: "AI Trends" } }),
 });
 
 const reader = response.body.getReader();
@@ -175,69 +179,77 @@ while (true) {
 
 ### Local Development
 
-```bash
+```cmd
 # Install dependencies
-make install
+pip install -r requirements.txt
 
 # Run development server
-make dev
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run tests
-make test
+pytest tests/ -v
 
 # Format code
-make format
+black src/
+isort src/
 
 # Lint code
-make lint
+black src/ --check
+isort src/ --check-only
+pyright src/
 ```
 
 ### Database Management
 
-```bash
+```cmd
 # Run migrations
-make db-upgrade
+alembic upgrade head
 
 # Reset database
-make db-reset
+docker-compose down -v
+docker-compose up -d postgres redis
+timeout 5
+alembic upgrade head
 
 # Access database admin
-open http://localhost:5050
+start http://localhost:5050
 ```
 
 ## 🚀 Deployment
 
 ### Production Build
 
-```bash
+```cmd
 # Build production image
-make prod-build
+docker build -f docker/Dockerfile -t ai-backend:prod .
 
 # Deploy to production
-make prod-up
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ### Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `REDIS_URL` | Redis connection string | Yes |
-| `OPENAI_API_KEY` | OpenAI API key | Yes |
-| `JWT_SECRET` | JWT signing secret | Yes |
-| `API_KEY_HASH_SALT` | Salt for API key hashing | Yes |
-| `ENVIRONMENT` | Environment (development/production) | No |
-| `DEBUG` | Enable debug mode | No |
-| `ALLOWED_ORIGINS` | CORS allowed origins | No |
+| Variable            | Description                          | Required |
+| ------------------- | ------------------------------------ | -------- |
+| `DATABASE_URL`      | PostgreSQL connection string         | Yes      |
+| `REDIS_URL`         | Redis connection string              | Yes      |
+| `OPENAI_API_KEY`    | OpenAI API key                       | Yes      |
+| `JWT_SECRET`        | JWT signing secret                   | Yes      |
+| `API_KEY_HASH_SALT` | Salt for API key hashing             | Yes      |
+| `ENVIRONMENT`       | Environment (development/production) | No       |
+| `DEBUG`             | Enable debug mode                    | No       |
+| `ALLOWED_ORIGINS`   | CORS allowed origins                 | No       |
 
 ## 📊 Monitoring
 
 ### Health Check
-```bash
+
+```cmd
 curl http://localhost:8000/health
 ```
 
 ### Metrics
+
 - Request rate per tenant
 - Token usage tracking
 - Agent execution metrics
@@ -265,7 +277,7 @@ MIT License - see LICENSE file for details.
 
 ## 🆘 Support
 
-- Check logs: `make docker-logs`
+- Check logs: `docker-compose logs -f ai-backend`
 - Database admin: http://localhost:5050
 - API docs: http://localhost:8000/docs
 
