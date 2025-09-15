@@ -1,0 +1,8 @@
+#!/bin/bash
+# Virtual Environment Python Wrapper
+# Usage: ./venv-python [args...] or ./venv-python -m module [args...]
+
+VENV_PYTHON="/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe"
+
+# Execute Python with all arguments passed through
+exec "$VENV_PYTHON" "$@"

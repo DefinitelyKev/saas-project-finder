@@ -16,14 +16,17 @@ This project uses a Python virtual environment with all required packages pre-in
 # Copy environment file and configure
 copy .env.example .env
 
-# Activate virtual environment (WSL)
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe"
+# Start all services (builds and starts containers)
+docker-compose up --build
 
-# Start all services
-docker-compose up -d
-
-# Create test tenant
-python scripts/create_tenant.py
+# Register a test tenant
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Company",
+    "tier": "free",
+    "allowed_agents": ["customer-support", "data-analyst"]
+  }'
 ```
 
 ### Type Checking Requirements
@@ -37,37 +40,31 @@ python scripts/create_tenant.py
 Pyright for local type checking:
 
 ```cmd
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pyright src/
+./venv-python -m pyright src/
 ```
 
 ### Development Workflow
 
 ```cmd
-# Development server
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+# Start development server
+docker-compose up --build
 
 # Testing
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pytest tests/ -v
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pytest tests/ --cov=src --cov-report=html --cov-report=term
+./venv-python -m pytest tests/ -v
 
-# Code formatting
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m black src/
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m isort src/
+# Code formatting and linting
+./venv-python -m black src/
+./venv-python -m isort src/
 
-# Linting and type checking
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m black src/ --check
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m isort src/ --check-only
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pyright src/
+# Type checking
+./venv-python -m pyright src/
 ```
 
 ### Docker Operations
 
 ```cmd
-# Build Docker image
-docker-compose build
-
-# Start all services
-docker-compose up -d
+# Start all services (builds and starts containers)
+docker-compose up --build
 
 # View application logs
 docker-compose logs -f ai-backend
@@ -81,62 +78,32 @@ docker-compose down
 
 ### Database Management
 
-#### Database Connection Configuration
+#### Database Connection
 
-The application uses PostgreSQL with asyncpg driver. For development, the database is configured with trust authentication to avoid password-related issues.
-
-**Working Database Configuration:**
-```env
-DATABASE_URL=postgresql+asyncpg://ai_user@localhost:5432/ai_backend
-```
-
-**Important Notes:**
-- Use `asyncpg` driver instead of `psycopg` for better async compatibility
-- Remove password from connection URL when using trust authentication
-- PostgreSQL is configured with trust authentication for development convenience
-
-#### Setting Up Database Authentication
-
-**Configure PostgreSQL for trust authentication:**
-```cmd
-# Configure pg_hba.conf for trust authentication
-docker exec saas-project-finder-postgres-1 bash -c "
-cat > /tmp/pg_hba.conf << 'EOF'
-host all all 0.0.0.0/0 trust
-local all all trust
-host all all 127.0.0.1/32 trust
-host all all ::1/128 trust
-EOF
-cp /tmp/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf
-"
-
-# Reload PostgreSQL configuration
-docker exec saas-project-finder-postgres-1 su postgres -c "pg_ctl reload -D /var/lib/postgresql/data"
-```
+The application uses PostgreSQL with asyncpg driver. Database runs in Docker with all services.
 
 #### Connecting to the Database
 
 There are multiple ways to connect and view your database:
 
-**1. pgAdmin Web Interface (Recommended)**
-```cmd
-# Start database services
-docker-compose up -d postgres pgadmin redis
+**pgAdmin Web Interface**
 
+```cmd
 # Access pgAdmin at: http://localhost:5050
 # Login: admin@ai-backend.com / admin
 ```
 
-**Connection details for pgAdmin:**
-- Host: `postgres` (or `localhost` from outside Docker)
+**Connection details:**
+- Host: `postgres`
 - Port: `5432`
 - Database: `ai_backend`
 - Username: `ai_user`
-- Password: (leave blank with trust authentication)
+- Password: `ai_password`
 
-**2. Command Line Access**
+**Command Line Access**
+
 ```cmd
-# Connect to PostgreSQL directly (no password needed with trust auth)
+# Connect to PostgreSQL directly
 docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend
 
 # List all databases
@@ -154,38 +121,10 @@ docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "SEL
 
 #### Testing API Endpoints
 
-**Test tenant registration endpoint:**
+**Test tenant registration:**
+
 ```cmd
-# Using Python urllib (no external dependencies)
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -c "
-import urllib.request
-import json
-
-test_data = {
-    'name': 'Test Company',
-    'tier': 'free',
-    'allowed_agents': ['customer-support', 'data-analyst']
-}
-
-data = json.dumps(test_data).encode('utf-8')
-req = urllib.request.Request(
-    'http://localhost:8003/api/v1/auth/register',
-    data=data,
-    headers={'Content-Type': 'application/json'}
-)
-
-try:
-    with urllib.request.urlopen(req) as response:
-        result = json.loads(response.read().decode('utf-8'))
-        print('SUCCESS:', json.dumps(result, indent=2))
-except Exception as e:
-    print('ERROR:', e)
-"
-```
-
-**Using curl:**
-```cmd
-curl -X POST http://localhost:8003/api/v1/auth/register \
+curl -X POST http://localhost:8000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test Company",
@@ -197,6 +136,7 @@ curl -X POST http://localhost:8003/api/v1/auth/register \
 #### Running Migrations
 
 **Method 1: Direct SQL Execution (Recommended)**
+
 ```cmd
 # Create SQL file with your schema changes
 # Execute SQL script directly
@@ -207,32 +147,32 @@ docker exec -i saas-project-finder-postgres-1 psql -U ai_user -d ai_backend < cr
 ```
 
 **Method 2: Alembic Migrations**
+
 ```cmd
 # Create new migration
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic revision --autogenerate -m "description of changes"
+./venv-python -m alembic revision --autogenerate -m "description of changes"
 
 # Run migrations (if alembic connection works)
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic upgrade head
+./venv-python -m alembic upgrade head
 
 # View current migration status
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic current
+./venv-python -m alembic current
 
 # View migration history
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic history
+./venv-python -m alembic history
 ```
 
 #### Database Operations
 
 **Reset database (destroys all data!)**
+
 ```cmd
 docker-compose down -v
-docker-compose up -d postgres redis
-timeout 5
-# Re-run your table creation script
-docker exec -i saas-project-finder-postgres-1 psql -U ai_user -d ai_backend < create_tables.sql
+docker-compose up --build
 ```
 
 **Backup database**
+
 ```cmd
 # Create backup
 docker exec saas-project-finder-postgres-1 pg_dump -U ai_user -d ai_backend > backup_$(date +%Y%m%d_%H%M%S).sql
@@ -242,6 +182,7 @@ docker exec -i saas-project-finder-postgres-1 psql -U ai_user -d ai_backend < ba
 ```
 
 **Insert sample data**
+
 ```cmd
 # Add test tenant
 docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "
@@ -256,6 +197,7 @@ docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "SEL
 #### Viewing Database Contents
 
 **Check table contents**
+
 ```cmd
 # Count records in each table
 docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "
@@ -281,6 +223,7 @@ LIMIT 10;"
 #### Database Health Checks
 
 **Monitor database status**
+
 ```cmd
 # Check if database is running
 docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "SELECT version();"
@@ -432,8 +375,8 @@ The agent execution flow:
 Use Alembic for database schema changes:
 
 ```bash
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic revision --autogenerate -m "Description"
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m alembic upgrade head
+./venv-python -m alembic revision --autogenerate -m "Description"
+./venv-python -m alembic upgrade head
 ```
 
 ### Repository Pattern
@@ -482,24 +425,26 @@ All API errors return consistent JSON:
 - **pyright**: Strict type checking (required - matches Pylance)
 - **pytest**: Testing framework with async support
 
-### Virtual Environment Usage (WSL)
+### Virtual Environment Usage
 
-**IMPORTANT**: Always use the full path to the Python executable when running Python commands:
+**IMPORTANT**: Always use the virtual environment Python wrapper when running Python commands:
 
 ```bash
-"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe"
+./venv-python          # Linux/WSL
+./venv-python.bat      # Windows Command Prompt
+./venv-python.ps1      # Windows PowerShell
 ```
 
-This ensures the virtual environment is used correctly in WSL without activation script issues.
+These wrapper scripts ensure the virtual environment is used correctly without needing the full path.
 
 ### Code Quality Standards
 
 When making any code changes:
 
-1. Always use the full virtual environment Python path
+1. Always use the virtual environment Python wrapper: `./venv-python`
 2. Add proper type hints to all new functions and methods
 3. Use `from typing import` for complex types like `Dict`, `List`, `Optional`, `Union`
-4. Run `"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -m pyright src/` before submitting changes
+4. Run `./venv-python -m pyright src/` before submitting changes
 5. Fix all type errors - no `# type: ignore` comments without justification
 6. **Keep code simple and clean - don't overcomplicate things**
 
@@ -525,27 +470,17 @@ Required for development:
 
 ### Application Logs
 
-Structured logging with correlation IDs:
-
 ```bash
-make docker-logs  # View application logs
+docker-compose logs -f ai-backend
 ```
 
 ### Database Admin
 
-Access PostgreSQL admin interface:
-
-```bash
-open http://localhost:5050  # pgAdmin (admin@ai-backend.com / admin)
-```
+pgAdmin: http://localhost:5050 (admin@ai-backend.com / admin)
 
 ### API Documentation
 
-Auto-generated OpenAPI docs:
-
-```bash
-open http://localhost:8000/docs  # Swagger UI
-```
+Swagger UI: http://localhost:8000/docs
 
 ### Health Checks
 

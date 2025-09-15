@@ -51,13 +51,19 @@ API_KEY_HASH_SALT=your_salt_here
 ### 3. Start Services
 
 ```cmd
-docker-compose up -d
+docker-compose up --build
 ```
 
 ### 4. Create a Test Tenant
 
 ```cmd
-python scripts/create_tenant.py
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Company",
+    "tier": "free",
+    "allowed_agents": ["customer-support", "data-analyst"]
+  }'
 ```
 
 ## 📚 API Endpoints
@@ -180,39 +186,29 @@ while (true) {
 ### Local Development
 
 ```cmd
-# Install dependencies
-pip install -r requirements.txt
-
-# Run development server
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+# Start development server
+docker-compose up --build
 
 # Run tests
-pytest tests/ -v
+./venv-python -m pytest tests/ -v
 
 # Format code
-black src/
-isort src/
+./venv-python -m black src/
+./venv-python -m isort src/
 
-# Lint code
-black src/ --check
-isort src/ --check-only
-pyright src/
+# Type checking
+./venv-python -m pyright src/
 ```
 
 ### Database Management
 
 ```cmd
-# Run migrations
-alembic upgrade head
-
 # Reset database
 docker-compose down -v
-docker-compose up -d postgres redis
-timeout 5
-alembic upgrade head
+docker-compose up --build
 
 # Access database admin
-start http://localhost:5050
+http://localhost:5050 (admin@ai-backend.com / admin)
 ```
 
 ## 🚀 Deployment
