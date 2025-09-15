@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import structlog
 import uvicorn
+import asyncio
+import sys
 
 from src.config.settings import settings
 from src.config.constants import API_V1_PREFIX, API_TITLE, API_DESCRIPTION, API_VERSION
@@ -14,6 +16,10 @@ from src.domain.exceptions import DomainException, TenantNotFound, AgentNotFound
 from src.services.scheduler import SaaSProjectFinderScheduler
 from src.infrastructure.persistence.database import get_async_session_factory
 import os
+
+# Fix Windows asyncio event loop for psycopg compatibility
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Configure structured logging
 logger = structlog.get_logger()

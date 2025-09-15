@@ -41,9 +41,7 @@ async def register_tenant(
             created_at=tenant.created_at,
         )
 
-        logger.info("Tenant registered successfully",
-                   tenant_id=str(tenant.id),
-                   name=request.name)
+        logger.info("Tenant registered successfully", tenant_id=str(tenant.id), name=request.name)
 
         return CreateTenantResponse(
             tenant=tenant_response,

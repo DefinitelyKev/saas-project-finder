@@ -1,24 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)",
-      "Bash(mypy:*)",
-      "Bash(poetry run mypy:*)",
-      "Bash(cd:*)",
-      "Bash(source:*)",
-      "Bash(python:*)",
-      "Bash(xargs:*)",
-      "Bash(.venv/Scripts/activate)",
-      "Bash(pyright:*)",
-      "Read(//mnt/c/Users/**)",
-      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m pyright src/)",
-      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m pyright src/ --outputjson)",
-      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -c \"from src.config.settings import settings; print(''Settings loaded successfully'')\")",
-      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000)",
-      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m pip install apscheduler)",
-      "Bash(docker-compose up:*)",
-      "Bash(docker exec:*)",
-      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -m alembic upgrade head)"
+      "Bash(\"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe\" -c \"\nimport urllib.request\nimport urllib.parse\nimport json\n\n# Test data with correct tier value\ntest_data = {\n    ''name'': ''Test Company'',\n    ''tier'': ''free'',\n    ''allowed_agents'': [''customer-support'', ''data-analyst'']\n}\n\n# API endpoint\nurl = ''http://localhost:8003/api/v1/auth/register''\n\ntry:\n    print(f''Testing tenant registration at {url}'')\n    print(f''Request data: {json.dumps(test_data, indent=2)}'')\n\n    # Prepare request\n    data = json.dumps(test_data).encode(''utf-8'')\n    req = urllib.request.Request(\n        url,\n        data=data,\n        headers={''Content-Type'': ''application/json''}\n    )\n\n    # Make request\n    with urllib.request.urlopen(req, timeout=10) as response:\n        status_code = response.getcode()\n        response_data = response.read().decode(''utf-8'')\n        \n        print(f''Response Status Code: {status_code}'')\n        \n        if status_code == 200:\n            parsed_response = json.loads(response_data)\n            print(f''Response Data:'')\n            print(json.dumps(parsed_response, indent=2, default=str))\n            print(''SUCCESS: Tenant registration successful!'')\n            \n            # Extract API key\n            if ''api_key'' in parsed_response:\n                api_key = parsed_response[''api_key'']\n                print(f''Generated API Key: {api_key[:20]}...'')\n        else:\n            print(f''FAILED: Registration failed!'')\n            print(f''Response: {response_data}'')\n\nexcept urllib.error.HTTPError as e:\n    print(f''HTTP Error {e.code}: {e.reason}'')\n    error_response = e.read().decode(''utf-8'')\n    print(f''Error response: {error_response}'')\nexcept Exception as e:\n    print(f''Error: {e}'')\n\")"
     ],
     "deny": [],
     "ask": []

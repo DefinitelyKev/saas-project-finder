@@ -81,6 +81,39 @@ docker-compose down
 
 ### Database Management
 
+#### Database Connection Configuration
+
+The application uses PostgreSQL with asyncpg driver. For development, the database is configured with trust authentication to avoid password-related issues.
+
+**Working Database Configuration:**
+```env
+DATABASE_URL=postgresql+asyncpg://ai_user@localhost:5432/ai_backend
+```
+
+**Important Notes:**
+- Use `asyncpg` driver instead of `psycopg` for better async compatibility
+- Remove password from connection URL when using trust authentication
+- PostgreSQL is configured with trust authentication for development convenience
+
+#### Setting Up Database Authentication
+
+**Configure PostgreSQL for trust authentication:**
+```cmd
+# Configure pg_hba.conf for trust authentication
+docker exec saas-project-finder-postgres-1 bash -c "
+cat > /tmp/pg_hba.conf << 'EOF'
+host all all 0.0.0.0/0 trust
+local all all trust
+host all all 127.0.0.1/32 trust
+host all all ::1/128 trust
+EOF
+cp /tmp/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf
+"
+
+# Reload PostgreSQL configuration
+docker exec saas-project-finder-postgres-1 su postgres -c "pg_ctl reload -D /var/lib/postgresql/data"
+```
+
 #### Connecting to the Database
 
 There are multiple ways to connect and view your database:
@@ -99,11 +132,11 @@ docker-compose up -d postgres pgadmin redis
 - Port: `5432`
 - Database: `ai_backend`
 - Username: `ai_user`
-- Password: `ai_password`
+- Password: (leave blank with trust authentication)
 
 **2. Command Line Access**
 ```cmd
-# Connect to PostgreSQL directly
+# Connect to PostgreSQL directly (no password needed with trust auth)
 docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend
 
 # List all databases
@@ -117,6 +150,48 @@ docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "\d 
 
 # Query specific table
 docker exec saas-project-finder-postgres-1 psql -U ai_user -d ai_backend -c "SELECT * FROM tenants LIMIT 5;"
+```
+
+#### Testing API Endpoints
+
+**Test tenant registration endpoint:**
+```cmd
+# Using Python urllib (no external dependencies)
+"/mnt/c/Users/Kevin Nguyen/Downloads/sass-projects/saas-project-finder/.venv/Scripts/python.exe" -c "
+import urllib.request
+import json
+
+test_data = {
+    'name': 'Test Company',
+    'tier': 'free',
+    'allowed_agents': ['customer-support', 'data-analyst']
+}
+
+data = json.dumps(test_data).encode('utf-8')
+req = urllib.request.Request(
+    'http://localhost:8003/api/v1/auth/register',
+    data=data,
+    headers={'Content-Type': 'application/json'}
+)
+
+try:
+    with urllib.request.urlopen(req) as response:
+        result = json.loads(response.read().decode('utf-8'))
+        print('SUCCESS:', json.dumps(result, indent=2))
+except Exception as e:
+    print('ERROR:', e)
+"
+```
+
+**Using curl:**
+```cmd
+curl -X POST http://localhost:8003/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Company",
+    "tier": "free",
+    "allowed_agents": ["customer-support", "data-analyst"]
+  }'
 ```
 
 #### Running Migrations

@@ -49,26 +49,17 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 # Store tenant in request state
                 request.state.tenant = tenant
 
-                logger.debug("Tenant resolved",
-                           tenant_id=str(tenant.id),
-                           tenant_name=tenant.name,
-                           path=request.url.path)
+                logger.debug(
+                    "Tenant resolved", tenant_id=str(tenant.id), tenant_name=tenant.name, path=request.url.path
+                )
 
         except (TenantNotFound, InvalidApiKey) as e:
-            logger.warning("Tenant resolution failed",
-                          error=str(e),
-                          path=request.url.path)
-            return JSONResponse(
-                status_code=401,
-                content={"error": "Unauthorized", "detail": "Invalid API key"}
-            )
+            logger.warning("Tenant resolution failed", error=str(e), path=request.url.path)
+            return JSONResponse(status_code=401, content={"error": "Unauthorized", "detail": "Invalid API key"})
         except Exception as e:
-            logger.error("Tenant middleware error",
-                        error=str(e),
-                        path=request.url.path)
+            logger.error("Tenant middleware error", error=str(e), path=request.url.path)
             return JSONResponse(
-                status_code=500,
-                content={"error": "Internal Server Error", "detail": "Tenant resolution failed"}
+                status_code=500, content={"error": "Internal Server Error", "detail": "Tenant resolution failed"}
             )
 
         # Continue to next middleware

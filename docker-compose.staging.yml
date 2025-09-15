@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  ai-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.staging
+      args:
+        - ENVIRONMENT=staging
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.staging
+    environment:
+      - ENVIRONMENT=staging
+      - DB_PASSWORD=${DB_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - API_KEY_HASH_SALT=${API_KEY_HASH_SALT}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./logs:/var/log/ai-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=ai_backend
+      - POSTGRES_USER=ai_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_backend"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_staging_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Monitoring and observability
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_staging_data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_staging_data:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  postgres_staging_data:
+  redis_staging_data:
+  prometheus_staging_data:
+  grafana_staging_data:
+
+networks:
+  default:
+    driver: bridge
