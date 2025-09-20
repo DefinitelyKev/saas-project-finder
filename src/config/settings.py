@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     openai_org_id: Optional[str] = Field(default=None, description="OpenAI organization ID")
     openai_timeout: int = Field(default=120, description="OpenAI API timeout in seconds")
     openai_max_retries: int = Field(default=3, description="OpenAI API max retries")
-    default_model: str = Field(default="gpt-4", description="Default OpenAI model")
+    default_model: str = Field(default="gpt-4.1-mini", description="Default OpenAI model")
 
     # Security Configuration
     jwt_secret: str = Field(default="", description="JWT signing secret")
@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     producthunt_api_token: Optional[str] = Field(default=None, description="ProductHunt API developer token")
     reddit_client_id: Optional[str] = Field(default=None, description="Reddit API client ID")
     reddit_client_secret: Optional[str] = Field(default=None, description="Reddit API client secret")
-    twitter_bearer_token: Optional[str] = Field(default=None, description="Twitter API bearer token")
+    # Removed Twitter - replaced with Indie Hackers web crawling
 
     # MCP Server Configuration
     mcp_server_url: str = Field(default="http://localhost:8080", description="MCP server URL")

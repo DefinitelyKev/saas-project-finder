@@ -12,11 +12,24 @@ This is a centralized AI Python multi-tenant backend that serves multiple Next.j
 # Setup and start (includes MCP server)
 copy .env.example .env
 docker-compose up --build
+```
 
+```python
 # Register test tenant
-curl -X POST http://localhost:8000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Test Company", "tier": "free", "allowed_agents": ["customer-support"]}'
+import httpx
+
+async def register_tenant():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/v1/auth/register",
+            headers={"Content-Type": "application/json"},
+            json={
+                "name": "Test Company",
+                "tier": "free",
+                "allowed_agents": ["customer-support"]
+            }
+        )
+        return response.json()
 ```
 
 ## Development Commands
@@ -148,24 +161,35 @@ Always use `./venv-python` wrapper script.
 
 - `MCP_SERVER_URL`: MCP server (default: http://localhost:8080)
 - `PRODUCTHUNT_API_TOKEN`: ProductHunt access
-- `REDDIT_CLIENT_ID/SECRET`: Reddit API
-- `TWITTER_BEARER_TOKEN`: Twitter API
+- `REDDIT_CLIENT_ID`: Reddit API client ID (optional, uses public API if not provided)
+- `REDDIT_CLIENT_SECRET`: Reddit API client secret (optional)
 
 ## API Testing
 
-```bash
+```python
 # Health check
-curl http://localhost:8000/health
+import httpx
 
-# API docs
-http://localhost:8000/docs
+async def health_check():
+    async with httpx.AsyncClient() as client:
+        response = await client.get("http://localhost:8000/health")
+        return response.json()
 
 # Agent execution
-curl -X POST http://localhost:8000/api/v1/agents/customer-support/execute \
-  -H "X-API-Key: tenant-key" \
-  -H "Content-Type: application/json" \
-  -d '{"parameters": {"customer_message": "Help me"}}'
+async def execute_agent():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/v1/agents/customer-support/execute",
+            headers={
+                "X-API-Key": "tenant-key",
+                "Content-Type": "application/json"
+            },
+            json={"parameters": {"customer_message": "Help me"}}
+        )
+        return response.json()
 ```
+
+**API docs:** http://localhost:8000/docs
 
 ## Frontend Integration
 

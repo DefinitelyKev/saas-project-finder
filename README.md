@@ -15,11 +15,24 @@ Centralized Python backend serving multiple Next.js SaaS projects with pre-confi
 # Setup (includes MCP server)
 cp .env.example .env
 docker-compose up --build
+```
 
+```python
 # Register tenant
-curl -X POST http://localhost:8000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Test Company", "tier": "free", "allowed_agents": ["customer-support"]}'
+import httpx
+
+async def register_tenant():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/v1/auth/register",
+            headers={"Content-Type": "application/json"},
+            json={
+                "name": "Test Company",
+                "tier": "free",
+                "allowed_agents": ["customer-support"]
+            }
+        )
+        return response.json()
 ```
 
 ## Architecture
@@ -101,6 +114,15 @@ http://localhost:5050 (admin@ai-backend.com / admin)
 
 ## Monitoring
 
-- Health: `curl http://localhost:8000/health`
+```python
+# Health check
+import httpx
+
+async def health_check():
+    async with httpx.AsyncClient() as client:
+        response = await client.get("http://localhost:8000/health")
+        return response.json()
+```
+
 - API docs: http://localhost:8000/docs
 - Logs: `docker-compose logs -f ai-backend`

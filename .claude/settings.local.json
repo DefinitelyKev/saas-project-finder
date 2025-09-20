@@ -14,7 +14,13 @@
       "Bash(./venv-python -m pyright src/)",
       "Read(//mnt/c/Users/**)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(docker-compose:*)",
+      "WebFetch(domain:www.reddit.com)",
+      "Bash(./venv-python -m pyright src/ --level error)",
+      "Bash(timeout:*)",
+      "Bash(./venv-python:*)",
+      "Bash(docker system prune:*)"
     ],
     "deny": [],
     "ask": []

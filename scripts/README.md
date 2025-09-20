@@ -5,6 +5,7 @@ Executable scripts for the SaaS Project Finder system.
 ## MCP Server Script
 
 ### `simple_mcp_server.py`
+
 Standalone MCP server for manual development use.
 
 ```bash
@@ -16,11 +17,13 @@ Standalone MCP server for manual development use.
 **Note:** The MCP server starts automatically with `docker-compose up --build`. This script is only needed for manual development testing.
 
 **Features:**
+
 - RESTful API endpoints
 - API key authentication
 - Automatic fallback to local execution
 
 **Endpoints:**
+
 - `GET /health` - Health check
 - `POST /execute` - Generic tool execution
 - `POST /search_producthunt` - ProductHunt search
@@ -51,12 +54,14 @@ docker-compose up --build
 ## Troubleshooting
 
 **Port in use:**
+
 ```bash
 lsof -i :8080  # Find process
 kill -9 <PID>  # Kill process
 ```
 
 **Permission errors:**
+
 ```bash
 chmod +x scripts/*.py
 ```

@@ -123,7 +123,7 @@ class SaaSProjectFinderScheduler:
         try:
             async with self.session_factory() as session:
                 # Execute trend scanner agent for each platform
-                platforms = ["producthunt", "reddit", "indiehackers", "twitter"]
+                platforms = ["producthunt", "reddit", "indiehackers"]
 
                 for platform in platforms:
                     await self._execute_trend_scanning(session, platform)
@@ -161,12 +161,6 @@ class SaaSProjectFinderScheduler:
                     "focus_categories": ["ai", "automation", "saas", "revenue"],
                     "timeframe": "day",
                     "min_engagement": 10
-                },
-                "twitter": {
-                    "scan_platforms": ["twitter"],
-                    "focus_categories": ["saas", "ai", "startup", "micro-saas"],
-                    "timeframe": "day",
-                    "min_engagement": 25
                 }
             }
 

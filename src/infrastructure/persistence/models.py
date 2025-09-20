@@ -153,7 +153,7 @@ class TrendingMetricsModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_idea_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    platform: Mapped[str] = mapped_column(String(50), nullable=False)  # producthunt, reddit, twitter, etc.
+    platform: Mapped[str] = mapped_column(String(50), nullable=False)  # producthunt, reddit, indiehackers, etc.
 
     # Engagement metrics
     mentions_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -80,16 +80,33 @@ Tests direct ProductHunt API integration.
 
 ## Manual Testing
 
-```bash
-# Health check
-curl http://localhost:8080/health
+```python
+import httpx
 
-# With authentication
-curl -H "X-API-Key: saas_finder_mcp_key_2025" http://localhost:8080/info
+async def manual_testing():
+    # Health check
+    async with httpx.AsyncClient() as client:
+        health_response = await client.get("http://localhost:8080/health")
+        print("Health:", health_response.json())
 
-# Tool execution
-curl -X POST -H "X-API-Key: saas_finder_mcp_key_2025" \
-  -H "Content-Type: application/json" \
-  -d '{"tool_name": "search_producthunt", "parameters": {"limit": 1}}' \
-  http://localhost:8080/execute
+        # With authentication
+        info_response = await client.get(
+            "http://localhost:8080/info",
+            headers={"X-API-Key": "saas_finder_mcp_key_2025"}
+        )
+        print("Info:", info_response.json())
+
+        # Tool execution
+        tool_response = await client.post(
+            "http://localhost:8080/execute",
+            headers={
+                "X-API-Key": "saas_finder_mcp_key_2025",
+                "Content-Type": "application/json"
+            },
+            json={
+                "tool_name": "search_producthunt",
+                "parameters": {"limit": 1}
+            }
+        )
+        print("Tool result:", tool_response.json())
 ```

@@ -53,14 +53,17 @@ services:
     environment:
       - MCP_SERVER_URL=http://localhost:8080
       - MCP_API_KEY=${MCP_API_KEY:-saas_finder_mcp_key_2025}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - API_KEY_HASH_SALT=${API_KEY_HASH_SALT}
       - PRODUCTHUNT_API_TOKEN=${PRODUCTHUNT_API_TOKEN}
       - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID}
       - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET}
-      - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN}
-    command: ["python", "scripts/simple_mcp_server.py"]
+    command: ["sh", "-c", "cd /app && PYTHONPATH=/app python scripts/simple_mcp_server.py"]
     volumes:
       - ./src:/app/src # For development - remove in production
-      - ./scripts:/app/scripts
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

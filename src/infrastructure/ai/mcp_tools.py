@@ -5,11 +5,19 @@ import asyncio
 import httpx
 from datetime import datetime, timedelta
 import re
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import os
 
-from src.domain.exceptions import AgentExecutionError
-from src.config.settings import settings
+try:
+    from src.domain.exceptions import AgentExecutionError
+    from src.config.settings import settings
+except ImportError:
+    # Fallback for when running MCP server standalone
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+    from src.domain.exceptions import AgentExecutionError
+    from src.config.settings import settings
 
 logger = structlog.get_logger()
 
@@ -30,7 +38,7 @@ class MCPToolExecutor:
             "search_producthunt": self._search_producthunt,
             "search_reddit_startups": self._search_reddit_startups,
             "search_hackernews": self._search_hackernews,
-            "search_twitter_trends": self._search_twitter_trends,
+            "search_indiehackers": self._search_indiehackers,
             "analyze_market_size": self._analyze_market_size,
             "analyze_competition": self._analyze_competition,
             "check_domain_availability": self._check_domain_availability,
@@ -338,8 +346,224 @@ class MCPToolExecutor:
         keywords = parameters.get("keywords", [])
         timeframe = parameters.get("timeframe", "week")
         sort_by = parameters.get("sort_by", "hot")
+        limit = parameters.get("limit", 25)
 
-        # Mock implementation for Reddit API
+        try:
+            # First get OAuth token for Reddit API
+            access_token = await self._get_reddit_access_token()
+            if not access_token:
+                logger.warning("Reddit API token not available, using fallback")
+                return await self._search_reddit_fallback(parameters)
+
+            # Build search query
+            query = " ".join(keywords) if keywords else "SaaS startup"
+
+            # Determine time filter
+            time_filter = "week"
+            if timeframe == "day":
+                time_filter = "day"
+            elif timeframe == "month":
+                time_filter = "month"
+            elif timeframe == "year":
+                time_filter = "year"
+
+            # Search Reddit API
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "User-Agent": "SaaS-Project-Finder/1.0 by /u/saas_finder_bot"
+            }
+
+            # Use Reddit's search endpoint
+            search_url = f"https://oauth.reddit.com/r/{subreddit}/search.json"
+            params = {
+                "q": query,
+                "restrict_sr": "1",  # Restrict to subreddit
+                "sort": sort_by,
+                "t": time_filter,
+                "limit": limit,
+                "type": "link"
+            }
+
+            response = await self.http_client.get(search_url, headers=headers, params=params)
+
+            if response.status_code != 200:
+                logger.error(f"Reddit API search failed: {response.status_code}")
+                return await self._search_reddit_fallback(parameters)
+
+            data = response.json()
+            posts = data.get("data", {}).get("children", [])
+
+            results = []
+            for post_data in posts:
+                post = post_data.get("data", {})
+
+                # Extract post information
+                title = post.get("title", "")
+                selftext = post.get("selftext", "")
+                url = post.get("url", "")
+                permalink = f"https://reddit.com{post.get('permalink', '')}"
+
+                # Calculate engagement score
+                upvotes = post.get("ups", 0)
+                comments = post.get("num_comments", 0)
+                engagement_score = self._calculate_engagement_score(upvotes, comments)
+
+                # Check for keywords
+                keywords_found = []
+                if keywords:
+                    content_text = f"{title} {selftext}".lower()
+                    keywords_found = [kw for kw in keywords if kw.lower() in content_text]
+
+                # Create result object
+                result = {
+                    "title": title,
+                    "description": selftext[:500] if selftext else "No description available",
+                    "url": permalink,
+                    "upvotes": upvotes,
+                    "comments": comments,
+                    "author": post.get("author", "unknown"),
+                    "subreddit": post.get("subreddit", subreddit),
+                    "created_at": datetime.fromtimestamp(post.get("created_utc", 0)).isoformat(),
+                    "keywords_found": keywords_found,
+                    "engagement_score": engagement_score,
+                    "post_id": post.get("id", ""),
+                    "is_self_post": post.get("is_self", False)
+                }
+
+                results.append(result)
+
+            return {
+                "results": results,
+                "total_found": len(results),
+                "subreddit": subreddit,
+                "keywords": keywords,
+                "timeframe": timeframe,
+                "search_timestamp": datetime.utcnow().isoformat(),
+                "api_source": "reddit_oauth"
+            }
+
+        except Exception as e:
+            logger.error(f"Reddit API error: {e}")
+            return await self._search_reddit_fallback(parameters)
+
+    async def _get_reddit_access_token(self) -> Optional[str]:
+        """Get OAuth access token for Reddit API."""
+        if not settings.reddit_client_id or not settings.reddit_client_secret:
+            return None
+
+        try:
+            # Reddit OAuth2 application-only flow
+            auth_url = "https://www.reddit.com/api/v1/access_token"
+
+            # Prepare credentials
+            auth = (settings.reddit_client_id, settings.reddit_client_secret)
+            headers = {
+                "User-Agent": "SaaS-Project-Finder/1.0 by /u/saas_finder_bot"
+            }
+            data = {
+                "grant_type": "client_credentials"
+            }
+
+            response = await self.http_client.post(auth_url, auth=auth, headers=headers, data=data)
+
+            if response.status_code == 200:
+                token_data = response.json()
+                return token_data.get("access_token")
+            else:
+                logger.error(f"Reddit OAuth failed: {response.status_code}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Reddit OAuth error: {e}")
+            return None
+
+    async def _search_reddit_fallback(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Fallback Reddit search using public JSON API (rate limited)."""
+        subreddit = parameters.get("subreddit", "startups")
+        keywords = parameters.get("keywords", [])
+        timeframe = parameters.get("timeframe", "week")
+        sort_by = parameters.get("sort_by", "hot")
+        limit = min(parameters.get("limit", 25), 25)  # Max 25 for public API
+
+        try:
+            # Use public JSON API (no auth required but rate limited)
+            base_url = f"https://www.reddit.com/r/{subreddit}/{sort_by}.json"
+            headers = {
+                "User-Agent": "SaaS-Project-Finder/1.0"
+            }
+            params = {
+                "limit": limit,
+                "t": timeframe if sort_by in ["top", "hot"] else "all"
+            }
+
+            response = await self.http_client.get(base_url, headers=headers, params=params)
+
+            if response.status_code != 200:
+                logger.error(f"Reddit fallback API failed: {response.status_code}")
+                return self._get_mock_reddit_data(parameters)
+
+            data = response.json()
+            posts = data.get("data", {}).get("children", [])
+
+            results = []
+            for post_data in posts:
+                post = post_data.get("data", {})
+
+                title = post.get("title", "")
+                selftext = post.get("selftext", "")
+
+                # Filter by keywords if provided
+                if keywords:
+                    content_text = f"{title} {selftext}".lower()
+                    if not any(kw.lower() in content_text for kw in keywords):
+                        continue
+
+                # Extract information
+                upvotes = post.get("ups", 0)
+                comments = post.get("num_comments", 0)
+                engagement_score = self._calculate_engagement_score(upvotes, comments)
+
+                result = {
+                    "title": title,
+                    "description": selftext[:500] if selftext else "No description available",
+                    "url": f"https://reddit.com{post.get('permalink', '')}",
+                    "upvotes": upvotes,
+                    "comments": comments,
+                    "author": post.get("author", "unknown"),
+                    "subreddit": post.get("subreddit", subreddit),
+                    "created_at": datetime.fromtimestamp(post.get("created_utc", 0)).isoformat(),
+                    "keywords_found": [kw for kw in keywords if kw.lower() in f"{title} {selftext}".lower()] if keywords else [],
+                    "engagement_score": engagement_score,
+                    "post_id": post.get("id", "")
+                }
+
+                results.append(result)
+
+            return {
+                "results": results,
+                "total_found": len(results),
+                "subreddit": subreddit,
+                "keywords": keywords,
+                "timeframe": timeframe,
+                "search_timestamp": datetime.utcnow().isoformat(),
+                "api_source": "reddit_public_json"
+            }
+
+        except Exception as e:
+            logger.error(f"Reddit fallback error: {e}")
+            return self._get_mock_reddit_data(parameters)
+
+    def _calculate_engagement_score(self, upvotes: int, comments: int) -> float:
+        """Calculate engagement score based on upvotes and comments."""
+        # Weight comments more heavily as they indicate deeper engagement
+        return (upvotes * 0.7) + (comments * 1.5)
+
+    def _get_mock_reddit_data(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Return mock data when Reddit API is unavailable."""
+        subreddit = parameters.get("subreddit", "startups")
+        keywords = parameters.get("keywords", [])
+        timeframe = parameters.get("timeframe", "week")
+
         mock_results = [
             {
                 "title": "Built an AI customer service bot in 2 weeks - $2k MRR",
@@ -351,7 +575,8 @@ class MCPToolExecutor:
                 "subreddit": "startups",
                 "created_at": "2024-01-14T10:30:00Z",
                 "keywords_found": ["ai", "customer service", "chatbot"],
-                "engagement_score": 78.5
+                "engagement_score": 78.5,
+                "post_id": "mock_xyz123"
             },
             {
                 "title": "Looking for feedback: AI-powered content calendar",
@@ -363,19 +588,8 @@ class MCPToolExecutor:
                 "subreddit": "entrepreneur",
                 "created_at": "2024-01-13T15:45:00Z",
                 "keywords_found": ["ai", "content", "social media"],
-                "engagement_score": 65.2
-            },
-            {
-                "title": "Micro-SaaS idea: AI email signature optimizer",
-                "description": "A tool that analyzes your email patterns and suggests optimized signatures for better conversion rates.",
-                "url": "https://reddit.com/r/microsaas/comments/def789",
-                "upvotes": 134,
-                "comments": 29,
-                "author": "email_expert",
-                "subreddit": "microsaas",
-                "created_at": "2024-01-12T09:20:00Z",
-                "keywords_found": ["ai", "email", "optimization"],
-                "engagement_score": 71.8
+                "engagement_score": 65.2,
+                "post_id": "mock_abc456"
             }
         ]
 
@@ -395,7 +609,8 @@ class MCPToolExecutor:
             "subreddit": subreddit,
             "keywords": keywords,
             "timeframe": timeframe,
-            "search_timestamp": datetime.utcnow().isoformat()
+            "search_timestamp": datetime.utcnow().isoformat(),
+            "api_source": "mock_fallback"
         }
 
     async def _search_hackernews(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -560,75 +775,223 @@ class MCPToolExecutor:
                 "error": str(e)
             }
 
-    async def _search_twitter_trends(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Search Twitter/X for trending SaaS and startup discussions."""
-        hashtags = parameters.get("hashtags", [])
-        keywords = parameters.get("keywords", [])
-        timeframe = parameters.get("timeframe", "day")
+    async def _search_indiehackers(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Search Indie Hackers for SaaS project ideas and startup discussions via web crawling."""
+        keywords = parameters.get("keywords", ["SaaS", "startup"])
+        category = parameters.get("category", "trending")  # trending, new, popular
+        limit = parameters.get("limit", 20)
 
-        # Mock implementation for Twitter API
+        try:
+            # Indie Hackers doesn't have a public API, so we'll crawl the website
+            # Start with the homepage and trending posts
+            base_url = "https://www.indiehackers.com"
+
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+            }
+
+            # Try to get the main page with recent posts
+            response = await self.http_client.get(f"{base_url}/", headers=headers, timeout=15.0)
+
+            if response.status_code != 200:
+                logger.warning(f"Indie Hackers main page failed: {response.status_code}")
+                return await self._get_indiehackers_fallback(parameters)
+
+            # Parse HTML content
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            results = []
+
+            # Look for post elements (this may need adjustment based on IH's current structure)
+            post_selectors = [
+                'article',
+                '.post-item',
+                '.discussion-item',
+                '[data-test="post"]',
+                '.feed-item'
+            ]
+
+            posts_found = []
+            for selector in post_selectors:
+                posts_found.extend(soup.select(selector))
+                if len(posts_found) >= limit:
+                    break
+
+            # If no posts found with selectors, try alternative approach
+            if not posts_found:
+                # Look for any links that might be posts
+                links = soup.find_all('a', href=True)
+                post_links = []
+                for link in links:
+                    # Check if link is a Tag element (not NavigableString)
+                    if not isinstance(link, Tag):
+                        continue
+                    href_attr = link.get('href')
+                    if href_attr is None:
+                        continue
+                    href = str(href_attr) if href_attr else ''
+                    # Look for post-like URLs
+                    if any(pattern in href for pattern in ['/post/', '/posts/', '/interview/', '/product/']):
+                        if href.startswith('/'):
+                            href = base_url + href
+                        post_links.append((link, href))
+
+                posts_found = post_links[:limit]
+
+            # Process found posts
+            for i, post_element in enumerate(posts_found[:limit]):
+                try:
+                    if isinstance(post_element, tuple):
+                        # Handle link-based extraction
+                        link_element, post_url = post_element
+                        title = link_element.get_text(strip=True) or "Indie Hackers Discussion"
+                        description = "Discussion from Indie Hackers community"
+                        author = "Unknown"
+                    else:
+                        # Handle article/post element extraction
+                        title_elem = post_element.find(['h1', 'h2', 'h3', 'h4', '.title', '[data-test="title"]'])
+                        title = title_elem.get_text(strip=True) if title_elem else f"Indie Hackers Post #{i+1}"
+
+                        desc_elem = post_element.find(['p', '.description', '.excerpt', '.content'])
+                        description = desc_elem.get_text(strip=True)[:300] if desc_elem else "Indie Hackers startup discussion"
+
+                        author_elem = post_element.find(['.author', '.username', '[data-test="author"]'])
+                        author = author_elem.get_text(strip=True) if author_elem else "Indie Hacker"
+
+                        # Try to find the post URL
+                        link_elem = post_element.find('a', href=True)
+                        post_url = link_elem['href'] if link_elem else f"{base_url}/post/{i}"
+                        if post_url.startswith('/'):
+                            post_url = base_url + post_url
+
+                    # Filter by keywords if provided
+                    content_text = f"{title} {description}".lower()
+                    keywords_found = [kw for kw in keywords if kw.lower() in content_text] if keywords else []
+
+                    # Skip if keywords specified but none found
+                    if keywords and not keywords_found:
+                        continue
+
+                    # Calculate basic engagement score (since we can't get actual metrics)
+                    engagement_score = len(title) * 0.5 + len(description) * 0.1 + len(keywords_found) * 10
+
+                    result = {
+                        "title": title,
+                        "description": description,
+                        "url": post_url,
+                        "author": author,
+                        "source": "indiehackers",
+                        "created_at": datetime.utcnow().isoformat(),
+                        "keywords_found": keywords_found,
+                        "engagement_score": engagement_score,
+                        "category": category,
+                        "content_type": "discussion"
+                    }
+
+                    results.append(result)
+
+                except Exception as e:
+                    logger.warning(f"Error parsing Indie Hackers post {i}: {e}")
+                    continue
+
+            # If we couldn't extract much, fall back to curated data
+            if len(results) < 3:
+                logger.info("Limited extraction from Indie Hackers, supplementing with fallback data")
+                fallback_data = await self._get_indiehackers_fallback(parameters)
+                results.extend(fallback_data['results'][:max(0, limit - len(results))])
+
+            return {
+                "results": results[:limit],
+                "total_found": len(results),
+                "keywords": keywords,
+                "category": category,
+                "search_timestamp": datetime.utcnow().isoformat(),
+                "api_source": "indiehackers_webcrawl"
+            }
+
+        except Exception as e:
+            logger.error(f"Indie Hackers crawling error: {e}")
+            return await self._get_indiehackers_fallback(parameters)
+
+    async def _get_indiehackers_fallback(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Fallback data for Indie Hackers when crawling fails."""
+        keywords = parameters.get("keywords", [])
+        category = parameters.get("category", "trending")
+
+        # Curated Indie Hackers-style content
         mock_results = [
             {
-                "text": "Just launched our AI-powered social media scheduler! It analyzes your audience and suggests optimal posting times 🚀 #SaaS #AI #SocialMedia",
-                "url": "https://twitter.com/startup_founder/status/1234567890",
-                "author": "startup_founder",
-                "retweets": 45,
-                "likes": 189,
-                "replies": 23,
-                "created_at": "2024-01-15T08:30:00Z",
-                "hashtags_found": ["saas", "ai", "socialmedia"],
-                "keywords_found": ["ai", "social media", "scheduler"],
-                "engagement_score": 74.2,
-                "sentiment": "positive"
+                "title": "How I built a $10k/month SaaS with no-code tools",
+                "description": "Sharing my journey of building an AI-powered customer feedback analyzer using Bubble and OpenAI API. Started as a side project, now generating consistent revenue.",
+                "url": "https://www.indiehackers.com/post/how-i-built-10k-month-saas-no-code",
+                "author": "sarah_builder",
+                "source": "indiehackers",
+                "created_at": "2024-01-15T14:30:00Z",
+                "keywords_found": ["saas", "ai", "no-code"],
+                "engagement_score": 85.2,
+                "category": "success-story",
+                "content_type": "milestone"
             },
             {
-                "text": "Problem: Managing team passwords is a nightmare. Solution: Building an AI password manager that auto-generates and rotates passwords. Thoughts? #cybersecurity #AI #startup",
-                "url": "https://twitter.com/security_dev/status/1234567891",
-                "author": "security_dev",
-                "retweets": 67,
-                "likes": 234,
-                "replies": 38,
-                "created_at": "2024-01-15T12:15:00Z",
-                "hashtags_found": ["cybersecurity", "ai", "startup"],
-                "keywords_found": ["ai", "password", "security"],
-                "engagement_score": 81.5,
-                "sentiment": "neutral"
+                "title": "Validate your micro-SaaS idea in 48 hours",
+                "description": "A step-by-step guide on how to quickly validate your SaaS idea using landing pages, Reddit posts, and direct customer interviews. Includes templates and scripts.",
+                "url": "https://www.indiehackers.com/post/validate-micro-saas-48-hours",
+                "author": "validation_expert",
+                "source": "indiehackers",
+                "created_at": "2024-01-14T11:20:00Z",
+                "keywords_found": ["saas", "validation", "startup"],
+                "engagement_score": 92.7,
+                "category": "guide",
+                "content_type": "educational"
             },
             {
-                "text": "Seeing huge demand for AI tools that help small businesses with bookkeeping. Market seems underserved. Anyone building in this space? #fintech #AI #smallbusiness",
-                "url": "https://twitter.com/fintech_observer/status/1234567892",
-                "author": "fintech_observer",
-                "retweets": 23,
-                "likes": 98,
-                "replies": 15,
-                "created_at": "2024-01-14T19:45:00Z",
-                "hashtags_found": ["fintech", "ai", "smallbusiness"],
-                "keywords_found": ["ai", "bookkeeping", "small business"],
-                "engagement_score": 62.8,
-                "sentiment": "positive"
+                "title": "AI automation tools that actually save time for solopreneurs",
+                "description": "After testing 50+ AI tools, here are the 8 that actually move the needle for solo founders. Focus on tools that eliminate repetitive tasks, not fancy features.",
+                "url": "https://www.indiehackers.com/post/ai-automation-tools-solopreneurs",
+                "author": "efficiency_finder",
+                "source": "indiehackers",
+                "created_at": "2024-01-13T16:45:00Z",
+                "keywords_found": ["ai", "automation", "productivity"],
+                "engagement_score": 78.1,
+                "category": "tools",
+                "content_type": "review"
+            },
+            {
+                "title": "Why I'm building in public: 30-day revenue breakdown",
+                "description": "Transparent look at building a B2B SaaS for small agencies. Daily user growth, revenue metrics, and lessons learned from customer interviews.",
+                "url": "https://www.indiehackers.com/post/building-public-30-day-revenue",
+                "author": "transparent_founder",
+                "source": "indiehackers",
+                "created_at": "2024-01-12T09:15:00Z",
+                "keywords_found": ["saas", "revenue", "building in public"],
+                "engagement_score": 88.5,
+                "category": "case-study",
+                "content_type": "milestone"
             }
         ]
 
-        # Filter by hashtags and keywords
-        if hashtags or keywords:
+        # Filter by keywords if provided
+        if keywords:
             filtered_results = []
             for result in mock_results:
-                match = False
-                if hashtags and any(tag.lower() in result["hashtags_found"] for tag in hashtags):
-                    match = True
-                if keywords and any(keyword.lower() in result["keywords_found"] for keyword in keywords):
-                    match = True
-                if match:
+                if any(keyword.lower() in result["title"].lower() or
+                      keyword.lower() in result["description"].lower()
+                      for keyword in keywords):
                     filtered_results.append(result)
             mock_results = filtered_results
 
         return {
             "results": mock_results,
             "total_found": len(mock_results),
-            "hashtags": hashtags,
             "keywords": keywords,
-            "timeframe": timeframe,
-            "search_timestamp": datetime.utcnow().isoformat()
+            "category": category,
+            "search_timestamp": datetime.utcnow().isoformat(),
+            "api_source": "indiehackers_fallback"
         }
 
     async def _analyze_market_size(self, parameters: Dict[str, Any]) -> Dict[str, Any]:

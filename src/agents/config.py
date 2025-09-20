@@ -6,7 +6,7 @@ AGENT_CONFIGS: Dict[str, Dict[str, Any]] = {
     "customer-support": {
         "name": "Customer Support Agent",
         "description": "Analyzes customer inquiries, provides solutions, and handles escalations",
-        "model": "gpt-4",
+        "model": "gpt-4.1-mini",
         "system_prompt": """You are a professional customer support specialist. Your role is to:
 
 1. Analyze customer inquiries and categorize them appropriately
@@ -25,10 +25,10 @@ Always be empathetic, solution-oriented, and thorough in your responses.""",
                     "type": "object",
                     "properties": {
                         "query": {"type": "string", "description": "Search query"},
-                        "category": {"type": "string", "enum": ["faq", "troubleshooting", "policies"]}
+                        "category": {"type": "string", "enum": ["faq", "troubleshooting", "policies"]},
                     },
-                    "required": ["query"]
-                }
+                    "required": ["query"],
+                },
             },
             {
                 "type": "function",
@@ -38,29 +38,28 @@ Always be empathetic, solution-oriented, and thorough in your responses.""",
                     "type": "object",
                     "properties": {
                         "reason": {"type": "string", "description": "Reason for escalation"},
-                        "priority": {"type": "string", "enum": ["low", "medium", "high", "urgent"]}
+                        "priority": {"type": "string", "enum": ["low", "medium", "high", "urgent"]},
                     },
-                    "required": ["reason", "priority"]
-                }
-            }
+                    "required": ["reason", "priority"],
+                },
+            },
         ],
         "parameters_schema": {
             "type": "object",
             "properties": {
                 "customer_message": {"type": "string", "description": "The customer's inquiry or issue"},
                 "customer_tier": {"type": "string", "enum": ["free", "pro", "enterprise"], "default": "free"},
-                "previous_context": {"type": "string", "description": "Previous conversation context (optional)"}
+                "previous_context": {"type": "string", "description": "Previous conversation context (optional)"},
             },
-            "required": ["customer_message"]
+            "required": ["customer_message"],
         },
         "max_tokens": 1500,
-        "temperature": 0.7
+        "temperature": 0.7,
     },
-
     "data-analyst": {
         "name": "Data Analysis Agent",
         "description": "Performs data analysis, generates insights, and creates visualizations",
-        "model": "gpt-4",
+        "model": "gpt-4.1-mini",
         "system_prompt": """You are an expert data analyst. Your capabilities include:
 
 1. Analyzing datasets to identify trends, patterns, and anomalies
@@ -79,10 +78,10 @@ Always provide clear explanations of your methodology and confidence levels in y
                     "type": "object",
                     "properties": {
                         "query": {"type": "string", "description": "SQL query to execute"},
-                        "database": {"type": "string", "description": "Target database name"}
+                        "database": {"type": "string", "description": "Target database name"},
                     },
-                    "required": ["query"]
-                }
+                    "required": ["query"],
+                },
             },
             {
                 "type": "function",
@@ -93,31 +92,33 @@ Always provide clear explanations of your methodology and confidence levels in y
                     "properties": {
                         "chart_type": {"type": "string", "enum": ["line", "bar", "pie", "scatter", "heatmap"]},
                         "data": {"type": "array", "description": "Data points for visualization"},
-                        "title": {"type": "string", "description": "Chart title"}
+                        "title": {"type": "string", "description": "Chart title"},
                     },
-                    "required": ["chart_type", "data", "title"]
-                }
-            }
+                    "required": ["chart_type", "data", "title"],
+                },
+            },
         ],
         "parameters_schema": {
             "type": "object",
             "properties": {
-                "analysis_type": {"type": "string", "enum": ["trend_analysis", "comparison", "correlation", "forecasting"]},
+                "analysis_type": {
+                    "type": "string",
+                    "enum": ["trend_analysis", "comparison", "correlation", "forecasting"],
+                },
                 "data_source": {"type": "string", "description": "Data source identifier"},
                 "time_range": {"type": "string", "description": "Time range for analysis (e.g., '30d', '3m', '1y')"},
                 "metrics": {"type": "array", "items": {"type": "string"}, "description": "Metrics to analyze"},
-                "filters": {"type": "object", "description": "Additional filters to apply"}
+                "filters": {"type": "object", "description": "Additional filters to apply"},
             },
-            "required": ["analysis_type", "data_source"]
+            "required": ["analysis_type", "data_source"],
         },
         "max_tokens": 2000,
-        "temperature": 0.5
+        "temperature": 0.5,
     },
-
     "content-writer": {
         "name": "SEO Content Writer",
         "description": "Creates SEO-optimized content for various marketing purposes",
-        "model": "gpt-4",
+        "model": "gpt-4.1-mini",
         "system_prompt": """You are an expert SEO content writer. Your expertise includes:
 
 1. Creating engaging, high-quality content optimized for search engines
@@ -136,10 +137,10 @@ Always prioritize value for readers while maintaining SEO optimization.""",
                     "type": "object",
                     "properties": {
                         "topic": {"type": "string", "description": "Main topic for keyword research"},
-                        "competition_level": {"type": "string", "enum": ["low", "medium", "high"]}
+                        "competition_level": {"type": "string", "enum": ["low", "medium", "high"]},
                     },
-                    "required": ["topic"]
-                }
+                    "required": ["topic"],
+                },
             },
             {
                 "type": "function",
@@ -149,32 +150,38 @@ Always prioritize value for readers while maintaining SEO optimization.""",
                     "type": "object",
                     "properties": {
                         "competitor_urls": {"type": "array", "items": {"type": "string"}},
-                        "analysis_focus": {"type": "string", "enum": ["keywords", "structure", "topics"]}
+                        "analysis_focus": {"type": "string", "enum": ["keywords", "structure", "topics"]},
                     },
-                    "required": ["competitor_urls"]
-                }
-            }
+                    "required": ["competitor_urls"],
+                },
+            },
         ],
         "parameters_schema": {
             "type": "object",
             "properties": {
-                "content_type": {"type": "string", "enum": ["blog_post", "landing_page", "product_description", "social_media"]},
+                "content_type": {
+                    "type": "string",
+                    "enum": ["blog_post", "landing_page", "product_description", "social_media"],
+                },
                 "topic": {"type": "string", "description": "Main topic or subject"},
                 "target_keywords": {"type": "array", "items": {"type": "string"}, "description": "Keywords to target"},
                 "word_count": {"type": "integer", "minimum": 100, "maximum": 5000, "description": "Target word count"},
-                "tone": {"type": "string", "enum": ["professional", "casual", "authoritative", "friendly"], "default": "professional"},
-                "target_audience": {"type": "string", "description": "Target audience description"}
+                "tone": {
+                    "type": "string",
+                    "enum": ["professional", "casual", "authoritative", "friendly"],
+                    "default": "professional",
+                },
+                "target_audience": {"type": "string", "description": "Target audience description"},
             },
-            "required": ["content_type", "topic"]
+            "required": ["content_type", "topic"],
         },
         "max_tokens": 4000,
-        "temperature": 0.8
+        "temperature": 0.8,
     },
-
     "code-reviewer": {
         "name": "Code Review Agent",
         "description": "Reviews code for quality, security, and best practices",
-        "model": "gpt-4",
+        "model": "gpt-4.1-mini",
         "system_prompt": """You are an expert code reviewer with deep knowledge of:
 
 1. Code quality and best practices across multiple languages
@@ -194,10 +201,10 @@ Provide constructive feedback with specific suggestions for improvement.""",
                     "properties": {
                         "code": {"type": "string", "description": "Code to analyze"},
                         "language": {"type": "string", "description": "Programming language"},
-                        "analysis_type": {"type": "string", "enum": ["security", "quality", "performance"]}
+                        "analysis_type": {"type": "string", "enum": ["security", "quality", "performance"]},
                     },
-                    "required": ["code", "language"]
-                }
+                    "required": ["code", "language"],
+                },
             },
             {
                 "type": "function",
@@ -208,11 +215,11 @@ Provide constructive feedback with specific suggestions for improvement.""",
                     "properties": {
                         "issue_type": {"type": "string", "description": "Type of issue found"},
                         "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
-                        "code_snippet": {"type": "string", "description": "Problematic code snippet"}
+                        "code_snippet": {"type": "string", "description": "Problematic code snippet"},
                     },
-                    "required": ["issue_type", "severity"]
-                }
-            }
+                    "required": ["issue_type", "severity"],
+                },
+            },
         ],
         "parameters_schema": {
             "type": "object",
@@ -222,29 +229,51 @@ Provide constructive feedback with specific suggestions for improvement.""",
                 "review_focus": {
                     "type": "array",
                     "items": {"type": "string", "enum": ["security", "performance", "maintainability", "testing"]},
-                    "description": "Areas to focus the review on"
+                    "description": "Areas to focus the review on",
                 },
-                "context": {"type": "string", "description": "Additional context about the code"}
+                "context": {"type": "string", "description": "Additional context about the code"},
             },
-            "required": ["code", "language"]
+            "required": ["code", "language"],
         },
         "max_tokens": 2500,
-        "temperature": 0.6
+        "temperature": 0.6,
     },
-
     "saas-trend-scanner": {
         "name": "SaaS Trend Scanner Agent",
         "description": "Scans multiple platforms for trending SaaS project ideas and opportunities",
-        "model": "gpt-4",
-        "system_prompt": """You are a specialized SaaS trend scanner with expertise in:
+        "model": "gpt-4.1-mini",
+        "system_prompt": """You are a high-volume SaaS trend scanner designed to discover 20-50 ideas per scan. You MUST:
 
-1. Identifying emerging SaaS opportunities across multiple platforms
-2. Analyzing trending discussions, problems, and solutions
-3. Extracting key details from product launches and startup discussions
-4. Recognizing patterns in successful micro-SaaS projects
-5. Evaluating the viability of AI-agent-powered solutions
+1. IMMEDIATELY execute comprehensive searches across all available platforms
+2. Use search_producthunt with multiple categories (ai, productivity, developer-tools, saas, no-code)
+3. Use search_reddit_startups across multiple subreddits (startups, entrepreneur, SaaS, indiehackers, microsaas)
+4. Use search_indiehackers with various tags and timeframes
+5. Extract structured data for EVERY promising idea found using extract_idea_details
 
-Your role is to systematically search and identify promising SaaS ideas that could be implemented as AI-agent-powered solutions. Focus on trending topics, unmet needs, and opportunities where AI automation could provide significant value.""",
+VOLUME TARGETS:
+- ProductHunt: 15-20 ideas per scan (search 3-5 categories)
+- Reddit: 15-20 ideas per scan (search 5+ subreddits)
+- IndieHackers: 10-15 ideas per scan (multiple tag combinations)
+- TOTAL TARGET: 20-50 validated ideas per complete scan
+
+QUALITY FILTERS (to reduce false positives):
+- Only extract ideas with clear business models
+- Require minimum engagement metrics (votes, comments, discussions)
+- Focus on problems with identifiable target markets
+- Prioritize ideas with revenue potential indicators
+- Filter out pure concept discussions without implementation signals
+
+SEARCH STRATEGY:
+- Use different timeframes (today, week, month) for comprehensive coverage
+- Search trending, newest, and top-voted content
+- Include both explicit SaaS discussions and problem-solution discussions
+- Extract pain points that could become SaaS opportunities
+
+OUTPUT REQUIREMENTS:
+- Provide structured data for each discovered idea
+- Include source platform, engagement metrics, and market signals
+- Rate initial promise level (High/Medium/Low) for each idea
+- Group similar ideas to avoid duplicates""",
         "tools": [
             {
                 "type": "mcp",
@@ -253,12 +282,15 @@ Your role is to systematically search and identify promising SaaS ideas that cou
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "category": {"type": "string", "enum": ["productivity", "developer-tools", "artificial-intelligence", "saas", "no-code"]},
+                        "category": {
+                            "type": "string",
+                            "enum": ["productivity", "developer-tools", "artificial-intelligence", "saas", "no-code"],
+                        },
                         "timeframe": {"type": "string", "enum": ["today", "week", "month"], "default": "week"},
-                        "sort_by": {"type": "string", "enum": ["votes", "comments", "newest"], "default": "votes"}
+                        "sort_by": {"type": "string", "enum": ["votes", "comments", "newest"], "default": "votes"},
                     },
-                    "required": ["category"]
-                }
+                    "required": ["category"],
+                },
             },
             {
                 "type": "mcp",
@@ -267,13 +299,20 @@ Your role is to systematically search and identify promising SaaS ideas that cou
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "subreddit": {"type": "string", "enum": ["startups", "entrepreneur", "SaaS", "indiehackers", "microsaas"]},
-                        "keywords": {"type": "array", "items": {"type": "string"}, "description": "Keywords to search for"},
+                        "subreddit": {
+                            "type": "string",
+                            "enum": ["startups", "entrepreneur", "SaaS", "indiehackers", "microsaas"],
+                        },
+                        "keywords": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Keywords to search for",
+                        },
                         "timeframe": {"type": "string", "enum": ["day", "week", "month"], "default": "week"},
-                        "sort_by": {"type": "string", "enum": ["hot", "top", "new"], "default": "hot"}
+                        "sort_by": {"type": "string", "enum": ["hot", "top", "new"], "default": "hot"},
                     },
-                    "required": ["subreddit"]
-                }
+                    "required": ["subreddit"],
+                },
             },
             {
                 "type": "mcp",
@@ -284,22 +323,22 @@ Your role is to systematically search and identify promising SaaS ideas that cou
                     "properties": {
                         "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags to filter by"},
                         "sort_by": {"type": "string", "enum": ["trending", "newest", "revenue"], "default": "trending"},
-                        "timeframe": {"type": "string", "enum": ["week", "month", "year"], "default": "week"}
-                    }
-                }
+                        "timeframe": {"type": "string", "enum": ["week", "month", "year"], "default": "week"},
+                    },
+                },
             },
             {
                 "type": "mcp",
-                "name": "search_twitter_trends",
-                "description": "Search Twitter/X for trending SaaS and startup discussions",
+                "name": "search_indiehackers",
+                "description": "Search Indie Hackers for SaaS project ideas and startup discussions",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "hashtags": {"type": "array", "items": {"type": "string"}, "description": "Hashtags to search"},
-                        "keywords": {"type": "array", "items": {"type": "string"}, "description": "Keywords to search"},
-                        "timeframe": {"type": "string", "enum": ["hour", "day", "week"], "default": "day"}
-                    }
-                }
+                        "keywords": {"type": "array", "items": {"type": "string"}, "description": "Keywords to search for"},
+                        "category": {"type": "string", "enum": ["trending", "new", "popular"], "default": "trending"},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20},
+                    },
+                },
             },
             {
                 "type": "function",
@@ -312,49 +351,77 @@ Your role is to systematically search and identify promising SaaS ideas that cou
                         "description": {"type": "string", "description": "Detailed description of the idea"},
                         "source_url": {"type": "string", "description": "URL where the idea was found"},
                         "source_platform": {"type": "string", "description": "Platform where idea was discovered"},
-                        "tags": {"type": "array", "items": {"type": "string"}, "description": "Relevant tags or categories"},
-                        "engagement_metrics": {"type": "object", "description": "Likes, comments, shares, etc."}
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Relevant tags or categories",
+                        },
+                        "engagement_metrics": {"type": "object", "description": "Likes, comments, shares, etc."},
                     },
-                    "required": ["title", "description", "source_url", "source_platform"]
-                }
-            }
+                    "required": ["title", "description", "source_url", "source_platform"],
+                },
+            },
         ],
         "parameters_schema": {
             "type": "object",
             "properties": {
                 "scan_platforms": {
                     "type": "array",
-                    "items": {"type": "string", "enum": ["producthunt", "reddit", "indiehackers", "twitter"]},
+                    "items": {"type": "string", "enum": ["producthunt", "reddit", "indiehackers"]},
                     "description": "Platforms to scan for ideas",
-                    "default": ["producthunt", "reddit"]
+                    "default": ["producthunt", "reddit", "indiehackers"],
                 },
                 "focus_categories": {
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "Categories or niches to focus on",
-                    "default": ["productivity", "ai", "automation", "developer-tools"]
+                    "default": ["ai", "productivity", "automation", "developer-tools", "saas", "no-code"],
+                },
+                "volume_target": {
+                    "type": "string",
+                    "enum": ["standard", "high-volume", "comprehensive"],
+                    "description": "Scanning volume mode",
+                    "default": "high-volume"
                 },
                 "timeframe": {"type": "string", "enum": ["day", "week", "month"], "default": "week"},
-                "min_engagement": {"type": "integer", "description": "Minimum engagement threshold", "default": 10}
-            }
+                "min_engagement": {"type": "integer", "description": "Minimum engagement threshold", "default": 5},
+                "quality_filter": {
+                    "type": "string",
+                    "enum": ["strict", "moderate", "permissive"],
+                    "description": "Quality filtering level to reduce false positives",
+                    "default": "moderate"
+                },
+                "max_ideas_per_platform": {
+                    "type": "integer",
+                    "description": "Maximum ideas to extract per platform",
+                    "default": 20,
+                    "minimum": 10,
+                    "maximum": 50
+                }
+            },
         },
-        "max_tokens": 3000,
-        "temperature": 0.7
+        "max_tokens": 4000,
+        "temperature": 0.7,
     },
-
     "saas-idea-analyzer": {
         "name": "SaaS Idea Analyzer Agent",
         "description": "Analyzes SaaS ideas for market potential, feasibility, and AI-agent suitability",
-        "model": "gpt-4",
-        "system_prompt": """You are an expert SaaS business analyst specializing in:
+        "model": "gpt-4.1-mini",
+        "system_prompt": """You are an expert SaaS business analyst. When given a SaaS idea to analyze, you must:
 
-1. Market research and competitive analysis
-2. Technical feasibility assessment for AI-powered solutions
-3. Revenue model evaluation and monetization strategies
-4. Implementation complexity analysis for micro-SaaS projects
-5. AI agent suitability evaluation
+1. IMMEDIATELY analyze the provided idea_title and idea_description without asking for additional details
+2. Use your available tools to research market size, competition, and technical feasibility
+3. Provide concrete analysis including:
+   - Market potential and size estimates
+   - Competitive landscape assessment
+   - AI suitability score (0-100)
+   - Technical feasibility evaluation
+   - Revenue model recommendations
+   - Implementation complexity estimate
 
-Your role is to thoroughly analyze SaaS ideas and provide comprehensive scores across multiple dimensions. Focus on determining whether an idea can be successfully implemented as an AI-agent-powered solution with strong market potential.""",
+IMPORTANT: Always work with the information provided in the idea_title and idea_description parameters. Do not ask for additional details - analyze what you have and use tools to gather more data if needed.
+
+Your analysis should be comprehensive, actionable, and focused on AI-agent implementation potential.""",
         "tools": [
             {
                 "type": "mcp",
@@ -365,11 +432,19 @@ Your role is to thoroughly analyze SaaS ideas and provide comprehensive scores a
                     "properties": {
                         "industry": {"type": "string", "description": "Industry or vertical"},
                         "target_audience": {"type": "string", "description": "Target customer segment"},
-                        "keywords": {"type": "array", "items": {"type": "string"}, "description": "Relevant keywords for research"},
-                        "geographic_scope": {"type": "string", "enum": ["local", "national", "global"], "default": "global"}
+                        "keywords": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Relevant keywords for research",
+                        },
+                        "geographic_scope": {
+                            "type": "string",
+                            "enum": ["local", "national", "global"],
+                            "default": "global",
+                        },
                     },
-                    "required": ["industry", "target_audience"]
-                }
+                    "required": ["industry", "target_audience"],
+                },
             },
             {
                 "type": "mcp",
@@ -378,12 +453,16 @@ Your role is to thoroughly analyze SaaS ideas and provide comprehensive scores a
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "keywords": {"type": "array", "items": {"type": "string"}, "description": "Keywords to search for competitors"},
+                        "keywords": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Keywords to search for competitors",
+                        },
                         "market_category": {"type": "string", "description": "Market category or niche"},
-                        "analysis_depth": {"type": "string", "enum": ["basic", "detailed"], "default": "basic"}
+                        "analysis_depth": {"type": "string", "enum": ["basic", "detailed"], "default": "basic"},
                     },
-                    "required": ["keywords", "market_category"]
-                }
+                    "required": ["keywords", "market_category"],
+                },
             },
             {
                 "type": "mcp",
@@ -393,10 +472,10 @@ Your role is to thoroughly analyze SaaS ideas and provide comprehensive scores a
                     "type": "object",
                     "properties": {
                         "domain_name": {"type": "string", "description": "Desired domain name"},
-                        "extensions": {"type": "array", "items": {"type": "string"}, "default": [".com", ".io", ".ai"]}
+                        "extensions": {"type": "array", "items": {"type": "string"}, "default": [".com", ".io", ".ai"]},
                     },
-                    "required": ["domain_name"]
-                }
+                    "required": ["domain_name"],
+                },
             },
             {
                 "type": "function",
@@ -408,10 +487,10 @@ Your role is to thoroughly analyze SaaS ideas and provide comprehensive scores a
                         "task_complexity": {"type": "string", "enum": ["simple", "moderate", "complex"]},
                         "automation_potential": {"type": "integer", "minimum": 0, "maximum": 100},
                         "data_requirements": {"type": "string", "enum": ["minimal", "moderate", "extensive"]},
-                        "user_interaction": {"type": "string", "enum": ["minimal", "moderate", "extensive"]}
+                        "user_interaction": {"type": "string", "enum": ["minimal", "moderate", "extensive"]},
                     },
-                    "required": ["task_complexity", "automation_potential"]
-                }
+                    "required": ["task_complexity", "automation_potential"],
+                },
             },
             {
                 "type": "function",
@@ -420,13 +499,21 @@ Your role is to thoroughly analyze SaaS ideas and provide comprehensive scores a
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "features": {"type": "array", "items": {"type": "string"}, "description": "List of required features"},
-                        "integrations": {"type": "array", "items": {"type": "string"}, "description": "Required third-party integrations"},
-                        "complexity_level": {"type": "string", "enum": ["mvp", "standard", "advanced"]}
+                        "features": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of required features",
+                        },
+                        "integrations": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Required third-party integrations",
+                        },
+                        "complexity_level": {"type": "string", "enum": ["mvp", "standard", "advanced"]},
                     },
-                    "required": ["features", "complexity_level"]
-                }
-            }
+                    "required": ["features", "complexity_level"],
+                },
+            },
         ],
         "parameters_schema": {
             "type": "object",
@@ -437,20 +524,22 @@ Your role is to thoroughly analyze SaaS ideas and provide comprehensive scores a
                 "analysis_depth": {"type": "string", "enum": ["quick", "standard", "deep"], "default": "standard"},
                 "focus_areas": {
                     "type": "array",
-                    "items": {"type": "string", "enum": ["market", "competition", "technical", "ai-suitability", "monetization"]},
-                    "default": ["market", "competition", "ai-suitability"]
-                }
+                    "items": {
+                        "type": "string",
+                        "enum": ["market", "competition", "technical", "ai-suitability", "monetization"],
+                    },
+                    "default": ["market", "competition", "ai-suitability"],
+                },
             },
-            "required": ["idea_title", "idea_description"]
+            "required": ["idea_title", "idea_description"],
         },
         "max_tokens": 3500,
-        "temperature": 0.5
+        "temperature": 0.5,
     },
-
     "saas-project-ranker": {
         "name": "SaaS Project Ranker Agent",
         "description": "Ranks and scores SaaS ideas based on comprehensive criteria and generates insights",
-        "model": "gpt-4",
+        "model": "gpt-4.1-mini",
         "system_prompt": """You are a sophisticated ranking system for SaaS project ideas with expertise in:
 
 1. Multi-criteria decision analysis and scoring algorithms
@@ -468,12 +557,15 @@ Your role is to rank SaaS ideas using a weighted scoring system that considers t
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "engagement_data": {"type": "object", "description": "Engagement metrics from various platforms"},
+                        "engagement_data": {
+                            "type": "object",
+                            "description": "Engagement metrics from various platforms",
+                        },
                         "timeframe": {"type": "string", "description": "Time period for trend analysis"},
-                        "growth_rate": {"type": "number", "description": "Rate of growth in mentions/engagement"}
+                        "growth_rate": {"type": "number", "description": "Rate of growth in mentions/engagement"},
                     },
-                    "required": ["engagement_data"]
-                }
+                    "required": ["engagement_data"],
+                },
             },
             {
                 "type": "function",
@@ -488,10 +580,10 @@ Your role is to rank SaaS ideas using a weighted scoring system that considers t
                         "competition_score": {"type": "number", "minimum": 0, "maximum": 100},
                         "feasibility_score": {"type": "number", "minimum": 0, "maximum": 100},
                         "monetization_score": {"type": "number", "minimum": 0, "maximum": 100},
-                        "custom_weights": {"type": "object", "description": "Custom weights for scoring criteria"}
+                        "custom_weights": {"type": "object", "description": "Custom weights for scoring criteria"},
                     },
-                    "required": ["trend_score", "market_score", "ai_suitability_score"]
-                }
+                    "required": ["trend_score", "market_score", "ai_suitability_score"],
+                },
             },
             {
                 "type": "mcp",
@@ -500,12 +592,24 @@ Your role is to rank SaaS ideas using a weighted scoring system that considers t
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "keywords": {"type": "array", "items": {"type": "string"}, "description": "Keywords to analyze"},
-                        "timeframe": {"type": "string", "enum": ["week", "month", "3months", "year"], "default": "3months"},
-                        "geographic_region": {"type": "string", "description": "Geographic region for analysis", "default": "worldwide"}
+                        "keywords": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Keywords to analyze",
+                        },
+                        "timeframe": {
+                            "type": "string",
+                            "enum": ["week", "month", "3months", "year"],
+                            "default": "3months",
+                        },
+                        "geographic_region": {
+                            "type": "string",
+                            "description": "Geographic region for analysis",
+                            "default": "worldwide",
+                        },
                     },
-                    "required": ["keywords"]
-                }
+                    "required": ["keywords"],
+                },
             },
             {
                 "type": "function",
@@ -514,13 +618,21 @@ Your role is to rank SaaS ideas using a weighted scoring system that considers t
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "competitors": {"type": "array", "items": {"type": "object"}, "description": "List of competitor data"},
-                        "differentiation_factors": {"type": "array", "items": {"type": "string"}, "description": "Key differentiators"},
-                        "market_gap_analysis": {"type": "object", "description": "Analysis of market gaps"}
+                        "competitors": {
+                            "type": "array",
+                            "items": {"type": "object"},
+                            "description": "List of competitor data",
+                        },
+                        "differentiation_factors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Key differentiators",
+                        },
+                        "market_gap_analysis": {"type": "object", "description": "Analysis of market gaps"},
                     },
-                    "required": ["competitors"]
-                }
-            }
+                    "required": ["competitors"],
+                },
+            },
         ],
         "parameters_schema": {
             "type": "object",
@@ -528,7 +640,7 @@ Your role is to rank SaaS ideas using a weighted scoring system that considers t
                 "ideas_to_rank": {
                     "type": "array",
                     "items": {"type": "object"},
-                    "description": "Array of SaaS ideas with their analysis data"
+                    "description": "Array of SaaS ideas with their analysis data",
                 },
                 "ranking_criteria": {
                     "type": "object",
@@ -538,16 +650,16 @@ Your role is to rank SaaS ideas using a weighted scoring system that considers t
                         "ai_suitability_weight": {"type": "number", "default": 0.20},
                         "competition_weight": {"type": "number", "default": 0.15},
                         "feasibility_weight": {"type": "number", "default": 0.10},
-                        "monetization_weight": {"type": "number", "default": 0.10}
-                    }
+                        "monetization_weight": {"type": "number", "default": 0.10},
+                    },
                 },
                 "ranking_period": {"type": "string", "enum": ["daily", "weekly", "monthly"], "default": "weekly"},
-                "top_n": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10}
-            }
+                "top_n": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10},
+            },
         },
         "max_tokens": 4000,
-        "temperature": 0.3
-    }
+        "temperature": 0.3,
+    },
 }
 
 
@@ -567,7 +679,7 @@ def create_agent_from_config(agent_id: str) -> Agent:
             description=tool_config["description"],
             parameters=tool_config.get("parameters", {}),
             server=tool_config.get("server"),
-            capabilities=tool_config.get("capabilities", [])
+            capabilities=tool_config.get("capabilities", []),
         )
         tools.append(tool)
 
@@ -580,7 +692,7 @@ def create_agent_from_config(agent_id: str) -> Agent:
         tools=tools,
         parameters_schema=config["parameters_schema"],
         max_tokens=config["max_tokens"],
-        temperature=config["temperature"]
+        temperature=config["temperature"],
     )
 
 

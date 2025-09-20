@@ -8,7 +8,7 @@ import asyncio
 import logging
 import sys
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from datetime import datetime, timedelta
 
 # FastAPI and HTTP imports
@@ -20,29 +20,30 @@ from pydantic import BaseModel
 
 # Project imports
 import os
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(project_root, 'src'))
 
-from infrastructure.ai.mcp_tools import MCPToolExecutor
-from config.settings import settings
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(project_root, "src"))
+
+from infrastructure.ai.mcp_tools import MCPToolExecutor  # type:ignore
+from config.settings import settings  # type:ignore
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 
 # Pydantic models for API
 class ToolRequest(BaseModel):
     tool_name: str
     parameters: Dict[str, Any]
 
+
 class ToolResponse(BaseModel):
     success: bool
     result: Any
     error: Optional[str] = None
     timestamp: str
+
 
 class SaaSFinderMCPServer:
     """Simple HTTP MCP-compatible server for SaaS Project Finder tools."""
@@ -56,7 +57,7 @@ class SaaSFinderMCPServer:
         self.app = FastAPI(
             title="SaaS Project Finder MCP Server",
             description="HTTP API for SaaS project discovery and analysis tools",
-            version="1.0.0"
+            version="1.0.0",
         )
 
         self._setup_middleware()
@@ -87,29 +88,30 @@ class SaaSFinderMCPServer:
         @self.app.get("/health")
         async def health_check():
             """Health check endpoint."""
-            return JSONResponse({
-                "status": "healthy",
-                "server": "saas-project-finder-mcp",
-                "timestamp": datetime.utcnow().isoformat()
-            })
+            return JSONResponse(
+                {"status": "healthy", "server": "saas-project-finder-mcp", "timestamp": datetime.utcnow().isoformat()}
+            )
 
         @self.app.get("/info")
         async def server_info():
             """Get server information."""
-            return JSONResponse({
-                "name": "saas-project-finder",
-                "version": "1.0.0",
-                "description": "MCP server for SaaS project discovery and analysis",
-                "tools": [
-                    "search_producthunt",
-                    "search_reddit_startups",
-                    "search_hackernews",
-                    "analyze_market_size",
-                    "analyze_competition",
-                    "check_domain_availability",
-                    "analyze_google_trends"
-                ]
-            })
+            return JSONResponse(
+                {
+                    "name": "saas-project-finder",
+                    "version": "1.0.0",
+                    "description": "MCP server for SaaS project discovery and analysis",
+                    "tools": [
+                        "search_producthunt",
+                        "search_reddit_startups",
+                        "search_indiehackers",
+                        "search_hackernews",
+                        "analyze_market_size",
+                        "analyze_competition",
+                        "check_domain_availability",
+                        "analyze_google_trends",
+                    ],
+                }
+            )
 
         @self.app.post("/execute", dependencies=[Depends(self._verify_api_key)])
         async def execute_tool(request: ToolRequest) -> ToolResponse:
@@ -119,32 +121,17 @@ class SaaSFinderMCPServer:
                 self.executor = MCPToolExecutor()
 
             try:
-                result = await self.executor.execute_mcp_tool(
-                    request.tool_name,
-                    request.parameters
-                )
+                result = await self.executor.execute_mcp_tool(request.tool_name, request.parameters)
 
-                return ToolResponse(
-                    success=True,
-                    result=result,
-                    timestamp=datetime.utcnow().isoformat()
-                )
+                return ToolResponse(success=True, result=result, timestamp=datetime.utcnow().isoformat())
 
             except Exception as e:
                 logger.error(f"Tool execution failed: {e}")
-                return ToolResponse(
-                    success=False,
-                    result=None,
-                    error=str(e),
-                    timestamp=datetime.utcnow().isoformat()
-                )
+                return ToolResponse(success=False, result=None, error=str(e), timestamp=datetime.utcnow().isoformat())
 
         @self.app.post("/search_producthunt", dependencies=[Depends(self._verify_api_key)])
         async def search_producthunt(
-            category: str = "productivity",
-            timeframe: str = "week",
-            sort_by: str = "votes",
-            limit: int = 20
+            category: str = "productivity", timeframe: str = "week", sort_by: str = "votes", limit: int = 20
         ) -> ToolResponse:
             """Search ProductHunt for trending products and ideas."""
 
@@ -152,34 +139,22 @@ class SaaSFinderMCPServer:
                 self.executor = MCPToolExecutor()
 
             try:
-                result = await self.executor._search_producthunt({
-                    "category": category,
-                    "timeframe": timeframe,
-                    "sort_by": sort_by,
-                    "limit": limit
-                })
-
-                return ToolResponse(
-                    success=True,
-                    result=result,
-                    timestamp=datetime.utcnow().isoformat()
+                result = await self.executor._search_producthunt(
+                    {"category": category, "timeframe": timeframe, "sort_by": sort_by, "limit": limit}
                 )
+
+                return ToolResponse(success=True, result=result, timestamp=datetime.utcnow().isoformat())
 
             except Exception as e:
                 logger.error(f"ProductHunt search failed: {e}")
-                return ToolResponse(
-                    success=False,
-                    result=None,
-                    error=str(e),
-                    timestamp=datetime.utcnow().isoformat()
-                )
+                return ToolResponse(success=False, result=None, error=str(e), timestamp=datetime.utcnow().isoformat())
 
         @self.app.post("/search_reddit_startups", dependencies=[Depends(self._verify_api_key)])
         async def search_reddit_startups(
             subreddit: str = "startups",
-            keywords: List[str] = None,
+            keywords: Optional[List[str]] = None,
             timeframe: str = "week",
-            sort_by: str = "hot"
+            sort_by: str = "hot",
         ) -> ToolResponse:
             """Search Reddit startup communities for SaaS ideas and discussions."""
 
@@ -187,34 +162,42 @@ class SaaSFinderMCPServer:
                 self.executor = MCPToolExecutor()
 
             try:
-                result = await self.executor._search_reddit_startups({
-                    "subreddit": subreddit,
-                    "keywords": keywords or [],
-                    "timeframe": timeframe,
-                    "sort_by": sort_by
-                })
-
-                return ToolResponse(
-                    success=True,
-                    result=result,
-                    timestamp=datetime.utcnow().isoformat()
+                result = await self.executor._search_reddit_startups(
+                    {"subreddit": subreddit, "keywords": keywords or [], "timeframe": timeframe, "sort_by": sort_by}
                 )
+
+                return ToolResponse(success=True, result=result, timestamp=datetime.utcnow().isoformat())
 
             except Exception as e:
                 logger.error(f"Reddit search failed: {e}")
-                return ToolResponse(
-                    success=False,
-                    result=None,
-                    error=str(e),
-                    timestamp=datetime.utcnow().isoformat()
+                return ToolResponse(success=False, result=None, error=str(e), timestamp=datetime.utcnow().isoformat())
+
+        @self.app.post("/search_indiehackers", dependencies=[Depends(self._verify_api_key)])
+        async def search_indiehackers(
+            categories: Optional[List[str]] = None, timeframe: str = "week", limit: int = 10
+        ) -> ToolResponse:
+            """Search Indie Hackers for SaaS project ideas via web crawling."""
+
+            if not self.executor:
+                self.executor = MCPToolExecutor()
+
+            try:
+                result = await self.executor._search_indiehackers(
+                    {"categories": categories or ["ai", "saas"], "timeframe": timeframe, "limit": limit}
                 )
+
+                return ToolResponse(success=True, result=result, timestamp=datetime.utcnow().isoformat())
+
+            except Exception as e:
+                logger.error(f"Indie Hackers search failed: {e}")
+                return ToolResponse(success=False, result=None, error=str(e), timestamp=datetime.utcnow().isoformat())
 
         @self.app.post("/analyze_market_size", dependencies=[Depends(self._verify_api_key)])
         async def analyze_market_size(
             industry: str,
             target_audience: str = "",
-            keywords: List[str] = None,
-            geographic_scope: str = "global"
+            keywords: Optional[List[str]] = None,
+            geographic_scope: str = "global",
         ) -> ToolResponse:
             """Research and estimate market size for a SaaS idea."""
 
@@ -222,27 +205,20 @@ class SaaSFinderMCPServer:
                 self.executor = MCPToolExecutor()
 
             try:
-                result = await self.executor._analyze_market_size({
-                    "industry": industry,
-                    "target_audience": target_audience,
-                    "keywords": keywords or [],
-                    "geographic_scope": geographic_scope
-                })
-
-                return ToolResponse(
-                    success=True,
-                    result=result,
-                    timestamp=datetime.utcnow().isoformat()
+                result = await self.executor._analyze_market_size(
+                    {
+                        "industry": industry,
+                        "target_audience": target_audience,
+                        "keywords": keywords or [],
+                        "geographic_scope": geographic_scope,
+                    }
                 )
+
+                return ToolResponse(success=True, result=result, timestamp=datetime.utcnow().isoformat())
 
             except Exception as e:
                 logger.error(f"Market analysis failed: {e}")
-                return ToolResponse(
-                    success=False,
-                    result=None,
-                    error=str(e),
-                    timestamp=datetime.utcnow().isoformat()
-                )
+                return ToolResponse(success=False, result=None, error=str(e), timestamp=datetime.utcnow().isoformat())
 
     async def run(self):
         """Run the HTTP server."""
@@ -252,19 +228,15 @@ class SaaSFinderMCPServer:
         logger.info(f"Execute tool: POST http://{self.host}:{self.port}/execute")
         logger.info(f"API Key required: {settings.mcp_api_key}")
 
-        config = uvicorn.Config(
-            app=self.app,
-            host=self.host,
-            port=self.port,
-            log_level="info"
-        )
+        config = uvicorn.Config(app=self.app, host=self.host, port=self.port, log_level="info")
         server = uvicorn.Server(config)
         await server.serve()
 
     async def cleanup(self):
         """Clean up resources."""
-        if self.executor:
-            await self.executor.close()
+        # Cleanup handled automatically by process termination
+        pass
+
 
 async def main():
     """Main entry point for the HTTP MCP server."""
@@ -282,6 +254,7 @@ async def main():
         logger.error(f"Server error: {e}")
     finally:
         await server.cleanup()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -546,12 +546,6 @@ async def get_supported_platforms(
             "description": "Bootstrapped project stories and ideas",
             "categories": ["ai", "automation", "saas", "revenue"]
         },
-        {
-            "id": "twitter",
-            "name": "Twitter/X",
-            "description": "Real-time startup and SaaS discussions",
-            "categories": ["saas", "ai", "startup", "micro-saas"]
-        }
     ]
 
     return {
