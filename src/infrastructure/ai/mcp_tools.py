@@ -6,8 +6,10 @@ import httpx
 from datetime import datetime, timedelta
 import re
 from bs4 import BeautifulSoup
+import os
 
 from src.domain.exceptions import AgentExecutionError
+from src.config.settings import settings
 
 logger = structlog.get_logger()
 
@@ -27,7 +29,7 @@ class MCPToolExecutor:
         self.mcp_tools: Dict[str, Any] = {
             "search_producthunt": self._search_producthunt,
             "search_reddit_startups": self._search_reddit_startups,
-            "search_indiehackers": self._search_indiehackers,
+            "search_hackernews": self._search_hackernews,
             "search_twitter_trends": self._search_twitter_trends,
             "analyze_market_size": self._analyze_market_size,
             "analyze_competition": self._analyze_competition,
@@ -51,13 +53,227 @@ class MCPToolExecutor:
             raise AgentExecutionError(f"MCP tool execution failed: {str(e)}")
 
     async def _search_producthunt(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Search ProductHunt for trending products and ideas."""
+        """Search ProductHunt for trending products and ideas using the actual API."""
+        category = parameters.get("category", "productivity")
+        timeframe = parameters.get("timeframe", "week")
+        sort_by = parameters.get("sort_by", "votes")
+        limit = parameters.get("limit", 20)
+
+        if not settings.producthunt_api_token:
+            logger.warning("ProductHunt API token not configured, using mock data")
+            return await self._search_producthunt_mock(parameters)
+
+        try:
+            # ProductHunt GraphQL API endpoint
+            url = "https://api.producthunt.com/v2/api/graphql"
+
+            # Build GraphQL query based on timeframe
+            if timeframe == "day":
+                query = """
+                query GetPosts($first: Int!, $order: PostsOrder!) {
+                  posts(first: $first, order: $order) {
+                    edges {
+                      node {
+                        id
+                        name
+                        tagline
+                        description
+                        url
+                        website
+                        votesCount
+                        commentsCount
+                        createdAt
+                        featuredAt
+                        makers {
+                          name
+                          username
+                        }
+                        topics {
+                          edges {
+                            node {
+                              name
+                              slug
+                            }
+                          }
+                        }
+                        thumbnail {
+                          url
+                        }
+                      }
+                    }
+                  }
+                }
+                """
+                variables = {
+                    "first": limit,
+                    "order": "VOTES" if sort_by == "votes" else "NEWEST"
+                }
+            else:
+                # For weekly/monthly data, use posts from a specific date range
+                query = """
+                query GetPosts($first: Int!, $postedAfter: DateTime!, $order: PostsOrder!) {
+                  posts(first: $first, postedAfter: $postedAfter, order: $order) {
+                    edges {
+                      node {
+                        id
+                        name
+                        tagline
+                        description
+                        url
+                        website
+                        votesCount
+                        commentsCount
+                        createdAt
+                        featuredAt
+                        makers {
+                          name
+                          username
+                        }
+                        topics {
+                          edges {
+                            node {
+                              name
+                              slug
+                            }
+                          }
+                        }
+                        thumbnail {
+                          url
+                        }
+                      }
+                    }
+                  }
+                }
+                """
+                # Calculate date based on timeframe
+                if timeframe == "week":
+                    posted_after = (datetime.utcnow() - timedelta(days=7)).isoformat()
+                elif timeframe == "month":
+                    posted_after = (datetime.utcnow() - timedelta(days=30)).isoformat()
+                else:
+                    posted_after = (datetime.utcnow() - timedelta(days=1)).isoformat()
+
+                variables = {
+                    "first": limit,
+                    "postedAfter": posted_after,
+                    "order": "VOTES" if sort_by == "votes" else "NEWEST"
+                }
+
+            headers = {
+                "Authorization": f"Bearer {settings.producthunt_api_token}",
+                "Content-Type": "application/json"
+            }
+
+            response = await self.http_client.post(
+                url,
+                json={"query": query, "variables": variables},
+                headers=headers
+            )
+
+            if response.status_code != 200:
+                logger.error("ProductHunt API request failed",
+                           status_code=response.status_code,
+                           response=response.text)
+                return await self._search_producthunt_mock(parameters)
+
+            data = response.json()
+
+            if "errors" in data:
+                logger.error("ProductHunt GraphQL errors", errors=data["errors"])
+                return await self._search_producthunt_mock(parameters)
+
+            # Process the response
+            posts_data = data.get("data", {}).get("posts", {}).get("edges", [])
+            results = []
+
+            for edge in posts_data:
+                post = edge["node"]
+
+                # Extract makers
+                makers = []
+                makers_data = post.get("makers", [])
+                if isinstance(makers_data, list):
+                    for maker in makers_data:
+                        makers.append(maker.get("name", maker.get("username", "Unknown")))
+                else:
+                    # Handle case where makers might be a single object
+                    if makers_data:
+                        makers.append(makers_data.get("name", makers_data.get("username", "Unknown")))
+
+                # Extract topics/tags
+                topics = []
+                topic_edges = post.get("topics", {}).get("edges", [])
+                for topic_edge in topic_edges:
+                    topic = topic_edge["node"]
+                    topics.append(topic.get("slug", topic.get("name", "")))
+
+                # Filter by category if specified and not "all"
+                if category != "all":
+                    # Check if any of the topics match the category
+                    category_matches = any(
+                        category.lower() in topic.lower() or topic.lower() in category.lower()
+                        for topic in topics
+                    )
+                    if not category_matches:
+                        continue
+
+                # Calculate engagement score
+                votes = post.get("votesCount", 0)
+                comments = post.get("commentsCount", 0)
+                engagement_score = min(100, (votes * 0.7 + comments * 1.5))
+
+                result = {
+                    "id": post.get("id", ""),
+                    "title": post.get("name", ""),
+                    "description": post.get("tagline", post.get("description", "")),
+                    "url": post.get("url", ""),
+                    "website": post.get("website", ""),
+                    "votes": votes,
+                    "comments": comments,
+                    "makers": makers,
+                    "maker": ", ".join(makers) if makers else "Unknown",
+                    "category": topics[0] if topics else "general",
+                    "tags": topics,
+                    "launch_date": post.get("featuredAt", post.get("createdAt", "")),
+                    "engagement_score": round(engagement_score, 1),
+                    "thumbnail": post.get("thumbnail", {}).get("url", "")
+                }
+                results.append(result)
+
+            # Sort results if needed
+            if sort_by == "votes":
+                results.sort(key=lambda x: x["votes"], reverse=True)
+            elif sort_by == "comments":
+                results.sort(key=lambda x: x["comments"], reverse=True)
+            elif sort_by == "engagement":
+                results.sort(key=lambda x: x["engagement_score"], reverse=True)
+
+            logger.info("ProductHunt API search completed",
+                       total_found=len(results),
+                       category=category,
+                       timeframe=timeframe)
+
+            return {
+                "results": results,
+                "total_found": len(results),
+                "category": category,
+                "timeframe": timeframe,
+                "sort_by": sort_by,
+                "search_timestamp": datetime.utcnow().isoformat(),
+                "api_used": "producthunt_graphql"
+            }
+
+        except Exception as e:
+            logger.error("ProductHunt API search failed", error=str(e))
+            # Fallback to mock data
+            return await self._search_producthunt_mock(parameters)
+
+    async def _search_producthunt_mock(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Fallback mock implementation for ProductHunt when API is unavailable."""
         category = parameters.get("category", "productivity")
         timeframe = parameters.get("timeframe", "week")
         sort_by = parameters.get("sort_by", "votes")
 
-        # Mock implementation for ProductHunt scraping
-        # In a real implementation, you would use ProductHunt's API or web scraping
         mock_results = [
             {
                 "title": "AI Task Automator",
@@ -112,7 +328,8 @@ class MCPToolExecutor:
             "total_found": len(mock_results),
             "category": category,
             "timeframe": timeframe,
-            "search_timestamp": datetime.utcnow().isoformat()
+            "search_timestamp": datetime.utcnow().isoformat(),
+            "api_used": "mock_fallback"
         }
 
     async def _search_reddit_startups(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -181,71 +398,167 @@ class MCPToolExecutor:
             "search_timestamp": datetime.utcnow().isoformat()
         }
 
-    async def _search_indiehackers(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Search IndieHackers for project ideas and success stories."""
-        tags = parameters.get("tags", [])
-        sort_by = parameters.get("sort_by", "trending")
-        timeframe = parameters.get("timeframe", "week")
+    async def _search_hackernews(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Search Hacker News for startup ideas, Show HN posts, and tech discussions."""
+        query = parameters.get("query", "Show HN")
+        story_type = parameters.get("story_type", "show_hn")  # show_hn, ask_hn, job, all
+        limit = parameters.get("limit", 20)
+        sort_by = parameters.get("sort_by", "points")  # points, comments, recent
 
-        # Mock implementation for IndieHackers
-        mock_results = [
-            {
-                "title": "How I built a $10k/month AI writing assistant",
-                "description": "Journey of building an AI-powered writing tool that helps content creators generate blog posts and social media content.",
-                "url": "https://indiehackers.com/post/ai-writing-assistant-journey",
-                "revenue": "$10,000",
-                "users": 500,
-                "author": "writing_guru",
-                "tags": ["ai", "writing", "content", "saas"],
-                "comments": 87,
-                "likes": 234,
-                "published_at": "2024-01-10T14:20:00Z",
-                "engagement_score": 82.4
-            },
-            {
-                "title": "Launched: AI-powered expense tracker for freelancers",
-                "description": "Built a smart expense tracking tool that automatically categorizes receipts and generates tax reports using AI.",
-                "url": "https://indiehackers.com/post/ai-expense-tracker-launch",
-                "revenue": "$3,200",
-                "users": 180,
-                "author": "freelance_dev",
-                "tags": ["ai", "finance", "freelancing", "automation"],
-                "comments": 45,
-                "likes": 127,
-                "published_at": "2024-01-09T11:15:00Z",
-                "engagement_score": 69.3
-            },
-            {
-                "title": "Bootstrapped AI recruitment tool to $5k MRR",
-                "description": "Created an AI tool that screens resumes and schedules interviews automatically for HR teams.",
-                "url": "https://indiehackers.com/post/ai-recruitment-tool-success",
-                "revenue": "$5,000",
-                "users": 25,
-                "author": "hr_optimizer",
-                "tags": ["ai", "hr", "recruitment", "b2b"],
-                "comments": 62,
-                "likes": 189,
-                "published_at": "2024-01-08T16:30:00Z",
-                "engagement_score": 76.8
+        try:
+            # Hacker News API endpoints
+            base_url = "https://hacker-news.firebaseio.com/v0"
+
+            stories = []
+            story_ids = []
+
+            if story_type == "show_hn":
+                # Get Show HN stories (these are often SaaS projects and demos)
+                response = await self.http_client.get(f"{base_url}/showstories.json")
+                if response.status_code == 200:
+                    story_ids = response.json()
+            elif story_type == "ask_hn":
+                # Get Ask HN stories (often include SaaS feedback requests)
+                response = await self.http_client.get(f"{base_url}/askstories.json")
+                if response.status_code == 200:
+                    story_ids = response.json()
+            elif story_type == "job":
+                # Get job stories (may include startup job postings)
+                response = await self.http_client.get(f"{base_url}/jobstories.json")
+                if response.status_code == 200:
+                    story_ids = response.json()
+            else:
+                # Get top stories
+                response = await self.http_client.get(f"{base_url}/topstories.json")
+                if response.status_code == 200:
+                    story_ids = response.json()
+
+            # Fetch details for the first 'limit' stories
+            for story_id in story_ids[:limit]:
+                try:
+                    story_response = await self.http_client.get(f"{base_url}/item/{story_id}.json")
+                    if story_response.status_code == 200:
+                        story_data = story_response.json()
+
+                        if story_data and story_data.get("type") == "story":
+                            # Filter based on query if provided
+                            title = story_data.get("title", "")
+                            text = story_data.get("text", "")
+
+                            if query.lower() in title.lower() or query.lower() in text.lower() or query == "Show HN":
+                                # Calculate engagement score
+                                score = story_data.get("score", 0)
+                                descendants = story_data.get("descendants", 0)
+                                engagement_score = (score * 0.7) + (descendants * 0.3)
+
+                                # Extract potential SaaS keywords from title and text
+                                saas_keywords = []
+                                keyword_patterns = ["saas", "ai", "automation", "productivity", "analytics",
+                                                  "dashboard", "api", "platform", "tool", "app", "service",
+                                                  "crm", "cms", "erp", "startup", "business", "freelancer"]
+
+                                combined_text = f"{title} {text}".lower()
+                                for keyword in keyword_patterns:
+                                    if keyword in combined_text:
+                                        saas_keywords.append(keyword)
+
+                                story_item = {
+                                    "id": story_data.get("id"),
+                                    "title": title,
+                                    "description": text[:500] + "..." if len(text) > 500 else text,
+                                    "url": f"https://news.ycombinator.com/item?id={story_data.get('id')}",
+                                    "external_url": story_data.get("url"),
+                                    "author": story_data.get("by"),
+                                    "points": score,
+                                    "comments": descendants,
+                                    "created_at": datetime.fromtimestamp(story_data.get("time", 0)).isoformat() + "Z",
+                                    "engagement_score": round(engagement_score, 1),
+                                    "story_type": story_type,
+                                    "saas_keywords": saas_keywords
+                                }
+                                stories.append(story_item)
+
+                except Exception as e:
+                    logger.error(f"Error fetching story {story_id}: {e}")
+                    continue
+
+            # Sort results based on sort_by parameter
+            if sort_by == "points":
+                stories.sort(key=lambda x: x["points"], reverse=True)
+            elif sort_by == "comments":
+                stories.sort(key=lambda x: x["comments"], reverse=True)
+            elif sort_by == "engagement":
+                stories.sort(key=lambda x: x["engagement_score"], reverse=True)
+
+            return {
+                "results": stories,
+                "total_found": len(stories),
+                "query": query,
+                "story_type": story_type,
+                "sort_by": sort_by,
+                "search_timestamp": datetime.utcnow().isoformat(),
+                "api_used": "hackernews_official"
             }
-        ]
 
-        # Filter by tags if provided
-        if tags:
-            filtered_results = []
-            for result in mock_results:
-                if any(tag.lower() in result["tags"] for tag in tags):
-                    filtered_results.append(result)
-            mock_results = filtered_results
+        except Exception as e:
+            logger.error(f"Hacker News API error: {e}")
 
-        return {
-            "results": mock_results,
-            "total_found": len(mock_results),
-            "tags": tags,
-            "sort_by": sort_by,
-            "timeframe": timeframe,
-            "search_timestamp": datetime.utcnow().isoformat()
-        }
+            # Fallback to mock data if API fails
+            mock_results = [
+                {
+                    "id": 12345,
+                    "title": "Show HN: AI-powered code review tool for startups",
+                    "description": "Built an automated code review system using GPT-4 that integrates with GitHub. Helps small teams maintain code quality without hiring senior developers.",
+                    "url": "https://news.ycombinator.com/item?id=12345",
+                    "external_url": "https://github.com/startup/code-reviewer",
+                    "author": "startup_founder",
+                    "points": 284,
+                    "comments": 67,
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "engagement_score": 218.1,
+                    "story_type": "show_hn",
+                    "saas_keywords": ["ai", "tool", "startup", "api"]
+                },
+                {
+                    "id": 12346,
+                    "title": "Ask HN: Best SaaS ideas for 2024?",
+                    "description": "Looking for feedback on SaaS opportunities in the AI space. What problems are you facing that could be solved with a simple web app?",
+                    "url": "https://news.ycombinator.com/item?id=12346",
+                    "external_url": None,
+                    "author": "entrepreneur_dev",
+                    "points": 156,
+                    "comments": 89,
+                    "created_at": "2024-01-14T15:20:00Z",
+                    "engagement_score": 135.9,
+                    "story_type": "ask_hn",
+                    "saas_keywords": ["saas", "ai", "app"]
+                },
+                {
+                    "id": 12347,
+                    "title": "Show HN: Simple invoice generator for freelancers",
+                    "description": "Created a minimal SaaS for generating professional invoices. No fluff, just clean invoices with automatic calculations and PDF export.",
+                    "url": "https://news.ycombinator.com/item?id=12347",
+                    "external_url": "https://simpleinvoices.co",
+                    "author": "freelancer_dev",
+                    "points": 198,
+                    "comments": 43,
+                    "created_at": "2024-01-13T09:15:00Z",
+                    "engagement_score": 151.5,
+                    "story_type": "show_hn",
+                    "saas_keywords": ["saas", "freelancer", "business"]
+                }
+            ]
+
+            return {
+                "results": mock_results,
+                "total_found": len(mock_results),
+                "query": query,
+                "story_type": story_type,
+                "sort_by": sort_by,
+                "search_timestamp": datetime.utcnow().isoformat(),
+                "api_used": "mock_fallback",
+                "error": str(e)
+            }
 
     async def _search_twitter_trends(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Search Twitter/X for trending SaaS and startup discussions."""

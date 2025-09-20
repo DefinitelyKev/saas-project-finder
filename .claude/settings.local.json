@@ -2,7 +2,19 @@
   "permissions": {
     "allow": [
       "Bash(docker-compose logs:*)",
-      "Bash(./venv-python --version)"
+      "Bash(./venv-python --version)",
+      "WebSearch",
+      "WebFetch(domain:api.producthunt.com)",
+      "WebFetch(domain:api-v2-docs.producthunt.com.s3-website-us-east-1.amazonaws.com)",
+      "WebFetch(domain:ph-graph-api-explorer.herokuapp.com)",
+      "Bash(cd:*)",
+      "Bash(./venv-python tests/test_hackernews_api.py)",
+      "Bash(curl:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(./venv-python -m pyright src/)",
+      "Read(//mnt/c/Users/**)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

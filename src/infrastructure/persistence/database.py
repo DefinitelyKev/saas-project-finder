@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
+from sqlalchemy import text
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 import asyncio
@@ -141,7 +142,7 @@ async def health_check() -> bool:
     """Health check for database connectivity."""
     try:
         async with get_db_session() as session:
-            result = await session.execute("SELECT 1")
+            result = await session.execute(text("SELECT 1"))
             return result.scalar() == 1
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
@@ -152,12 +153,18 @@ async def get_database_info() -> dict:
     """Get database connection information for monitoring."""
     try:
         pool = engine.pool
+        # Use getattr to handle different pool types safely
+        pool_size = getattr(pool, 'size', lambda: 0)()
+        checked_in = getattr(pool, 'checkedin', lambda: 0)()
+        checked_out = getattr(pool, 'checkedout', lambda: 0)()
+        overflow = getattr(pool, 'overflow', lambda: 0)()
+
         return {
-            "pool_size": pool.size(),
-            "checked_in": pool.checkedin(),
-            "checked_out": pool.checkedout(),
-            "overflow": pool.overflow(),
-            "total_connections": pool.size() + pool.overflow(),
+            "pool_size": pool_size,
+            "checked_in": checked_in,
+            "checked_out": checked_out,
+            "overflow": overflow,
+            "total_connections": pool_size + overflow,
         }
     except Exception as e:
         logger.error(f"Failed to get database info: {e}")

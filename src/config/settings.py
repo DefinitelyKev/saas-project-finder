@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, description="Enable debug mode")
 
     # Database Configuration
-    database_url: str = Field(description="Database connection URL")
+    database_url: str = Field(default="", description="Database connection URL")
     database_pool_size: int = Field(default=20, description="Database connection pool size")
     database_pool_timeout: int = Field(default=30, description="Database pool timeout in seconds")
     database_pool_recycle: int = Field(default=3600, description="Database pool recycle time in seconds")
@@ -23,23 +23,23 @@ class Settings(BaseSettings):
     database_retry_delay: float = Field(default=1.0, description="Database retry delay in seconds")
 
     # Redis Configuration
-    redis_url: str = Field(description="Redis connection URL")
+    redis_url: str = Field(default="", description="Redis connection URL")
     redis_pool_size: int = Field(default=20, description="Redis connection pool size")
     redis_retry_attempts: int = Field(default=3, description="Redis connection retry attempts")
     cache_ttl: int = Field(default=3600, description="Default cache TTL in seconds")
 
     # OpenAI Configuration
-    openai_api_key: str = Field(description="OpenAI API key")
+    openai_api_key: str = Field(default="", description="OpenAI API key")
     openai_org_id: Optional[str] = Field(default=None, description="OpenAI organization ID")
     openai_timeout: int = Field(default=120, description="OpenAI API timeout in seconds")
     openai_max_retries: int = Field(default=3, description="OpenAI API max retries")
     default_model: str = Field(default="gpt-4", description="Default OpenAI model")
 
     # Security Configuration
-    jwt_secret: str = Field(description="JWT signing secret")
+    jwt_secret: str = Field(default="", description="JWT signing secret")
     jwt_algorithm: str = Field(default="HS256", description="JWT signing algorithm")
     jwt_expiration_hours: int = Field(default=24, description="JWT token expiration in hours")
-    api_key_hash_salt: str = Field(description="API key hashing salt")
+    api_key_hash_salt: str = Field(default="", description="API key hashing salt")
 
     # Security headers and HTTPS
     force_https: bool = Field(default=False, description="Force HTTPS redirects")
@@ -64,17 +64,12 @@ class Settings(BaseSettings):
 
     # CORS Configuration
     allowed_origins: Union[List[str], str] = Field(
-        default=["http://localhost:3000"],
-        description="CORS allowed origins"
+        default=["http://localhost:3000"], description="CORS allowed origins"
     )
-    allowed_methods: List[str] = Field(
-        default=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        description="CORS allowed methods"
+    allowed_methods: Union[List[str], str] = Field(
+        default=["GET", "POST", "PUT", "DELETE", "OPTIONS"], description="CORS allowed methods"
     )
-    allowed_headers: List[str] = Field(
-        default=["*"],
-        description="CORS allowed headers"
-    )
+    allowed_headers: Union[List[str], str] = Field(default=["*"], description="CORS allowed headers")
 
     # Production-specific settings
     worker_processes: int = Field(default=1, description="Number of worker processes")
@@ -86,6 +81,16 @@ class Settings(BaseSettings):
     backup_schedule: str = Field(default="0 2 * * *", description="Backup cron schedule")
     maintenance_mode: bool = Field(default=False, description="Enable maintenance mode")
 
+    # External API Configuration
+    producthunt_api_token: Optional[str] = Field(default=None, description="ProductHunt API developer token")
+    reddit_client_id: Optional[str] = Field(default=None, description="Reddit API client ID")
+    reddit_client_secret: Optional[str] = Field(default=None, description="Reddit API client secret")
+    twitter_bearer_token: Optional[str] = Field(default=None, description="Twitter API bearer token")
+
+    # MCP Server Configuration
+    mcp_server_url: str = Field(default="http://localhost:8080", description="MCP server URL")
+    mcp_api_key: str = Field(default="your_mcp_api_key_here", description="MCP server API key")
+
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_origins(cls, v: Any) -> List[str]:
@@ -93,6 +98,32 @@ class Settings(BaseSettings):
             # Handle comma-separated string
             if v.strip():
                 return [origin.strip() for origin in v.split(",")]
+            else:
+                return []
+        elif isinstance(v, list):
+            return v
+        return v
+
+    @field_validator("allowed_methods", mode="before")
+    @classmethod
+    def parse_methods(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            # Handle comma-separated string
+            if v.strip():
+                return [method.strip() for method in v.split(",")]
+            else:
+                return []
+        elif isinstance(v, list):
+            return v
+        return v
+
+    @field_validator("allowed_headers", mode="before")
+    @classmethod
+    def parse_headers(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            # Handle comma-separated string
+            if v.strip():
+                return [header.strip() for header in v.split(",")]
             else:
                 return []
         elif isinstance(v, list):
@@ -181,13 +212,9 @@ class Settings(BaseSettings):
         return self.environment == "development"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        env_parse_none_str="None",
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, env_parse_none_str="None", extra="ignore"
     )
 
 
-# Global settings instance
+# Global settings instance - automatically loads from environment variables
 settings = Settings()
