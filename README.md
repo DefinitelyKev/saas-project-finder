@@ -2,6 +2,11 @@
 
 Centralized Python backend serving multiple Next.js SaaS projects with pre-configured AI agents and MCP integration.
 
+## API Standards
+- **All examples use Python httpx** (never curl)
+- **No emojis in code or examples**
+- **Async/await patterns for all HTTP operations**
+
 ## Features
 
 - **Multi-tenant Architecture** - API key-based isolation per SaaS project

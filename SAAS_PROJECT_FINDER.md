@@ -4,6 +4,14 @@
 
 The SaaS Project Finder Agent System is a comprehensive AI-powered solution that automatically discovers, analyzes, and ranks trending SaaS project ideas from multiple platforms. It uses specialized AI agents with MCP (Model Context Protocol) integration to provide weekly curated reports of the best AI-agent-suitable projects.
 
+## API Communication Standards
+
+**Important**: All examples in this documentation follow strict standards:
+- **Python httpx only** (never curl commands)
+- **No emojis** in code examples or outputs
+- **Async/await patterns** for all HTTP operations
+- See `docs/API_STANDARDS.md` for complete guidelines
+
 ## Features
 
 ### 🔍 Multi-Platform Discovery
@@ -30,6 +38,7 @@ The SaaS Project Finder Agent System is a comprehensive AI-powered solution that
 
 ### 📧 Automated Reporting
 
+- **Daily Email Reports**: New ideas discovered each day with analysis and ranking
 - **Weekly Email Reports**: Top 10 ideas with detailed analysis
 - **Market Insights**: Trending categories and emerging opportunities
 - **Immediate Alerts**: High-potential ideas (score ≥85) notifications
@@ -40,6 +49,7 @@ The SaaS Project Finder Agent System is a comprehensive AI-powered solution that
 - **Daily Scanning** (9 AM UTC): Discovery of new ideas
 - **Afternoon Analysis** (2 PM UTC): AI-powered evaluation
 - **Evening Ranking** (6 PM UTC): Score updates and positioning
+- **Daily Reports** (7 PM UTC): Email summary of new ideas with analysis
 - **Weekly Reports** (Sunday 10 AM UTC): Comprehensive summaries
 
 ## Agents
@@ -95,6 +105,7 @@ GET /api/v1/saas-ideas/scheduler/status      # Job status
 - **9 AM UTC**: Daily platform scanning
 - **2 PM UTC**: Analysis of new ideas
 - **6 PM UTC**: Ranking updates
+- **7 PM UTC**: Daily email reports
 - **Sunday 10 AM UTC**: Weekly email reports
 - **Every 4 hours**: Continuous ranking updates
 
@@ -163,26 +174,34 @@ async def manual_operations():
     headers = {"X-API-Key": "your-key"}
 
     async with httpx.AsyncClient() as client:
-        # Trigger scan
+        # Execute high-volume scan (default behavior)
         scan_response = await client.post(
-            "http://localhost:8000/api/v1/saas-ideas/scheduler/scan",
-            headers=headers
+            "http://localhost:8000/api/v1/agents/saas-trend-scanner/execute",
+            headers=headers,
+            json={
+                "parameters": {
+                    "scan_platforms": ["producthunt", "reddit", "indiehackers"],
+                    "focus_categories": ["ai", "productivity", "automation", "developer-tools", "saas", "no-code"],
+                    "volume_target": "comprehensive",
+                    "max_ideas_per_platform": 25
+                }
+            }
         )
-        print("Scan triggered:", scan_response.json())
+        print("High-volume scan completed:", scan_response.json())
 
-        # Get top ideas
-        ideas_response = await client.get(
-            "http://localhost:8000/api/v1/saas-ideas/top?limit=5",
-            headers=headers
+        # Analyze discovered ideas
+        analyzer_response = await client.post(
+            "http://localhost:8000/api/v1/agents/saas-idea-analyzer/execute",
+            headers=headers,
+            json={
+                "parameters": {
+                    "idea_title": "Example SaaS Idea",
+                    "idea_description": "AI-powered automation tool for business processes",
+                    "analysis_depth": "standard"
+                }
+            }
         )
-        print("Top ideas:", ideas_response.json())
-
-        # Send weekly report
-        report_response = await client.post(
-            "http://localhost:8000/api/v1/saas-ideas/reports/weekly/send",
-            headers=headers
-        )
-        print("Report sent:", report_response.json())
+        print("Analysis completed:", analyzer_response.json())
 ```
 
 ## Troubleshooting
@@ -219,9 +238,10 @@ docker-compose logs -f ai-backend
 ## Performance Targets
 
 ### Discovery Volume
-- **20-50 new ideas discovered daily** (per automated scan)
-- **140-350 new ideas per week** (7 daily scans)
+- **20-50 new ideas per scan** (standard operation)
+- **140-350 new ideas per week** (7 daily automated scans)
 - **500+ ideas per month** (continuous discovery pipeline)
+- **High-volume by default** (no separate scripts needed)
 
 ### Quality Metrics
 - **<5% false positive rate** (quality filtering system)
@@ -237,11 +257,12 @@ docker-compose logs -f ai-backend
 - **Target scaling**: 40-55 ideas (requires expanded tool coverage)
 
 ### Current Performance (Verified)
-- **Actual Discovery Rate**: 15-25 ideas per scan
-- **Scan Time**: 10-15 seconds (excellent performance)
-- **Tool Usage**: 5+ MCP tools per scan (optimal)
+- **Actual Discovery Rate**: 10-25 ideas per scan (integrated high-volume)
+- **Scan Time**: 15-20 seconds (excellent performance)
+- **Tool Usage**: 6+ MCP tools per scan (optimal)
 - **Quality Filter**: Moderate filtering active
 - **Success Rate**: 95%+ scan completion
+- **Integration**: High-volume capabilities built into main scanner (no separate scripts needed)
 
 ### Processing Efficiency
 - **<5 minutes** per complete scan cycle

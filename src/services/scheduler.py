@@ -83,6 +83,16 @@ class SaaSProjectFinderScheduler:
             coalesce=True
         )
 
+        # Daily report email (7 PM UTC) - Send daily summary
+        self.scheduler.add_job(
+            func=self.daily_report_email,
+            trigger=CronTrigger(hour=19, minute=0),
+            id="daily_report_email",
+            name="Daily Report Email",
+            max_instances=1,
+            coalesce=True
+        )
+
         logger.info("Scheduled daily tasks")
 
     def _schedule_weekly_tasks(self):
@@ -391,6 +401,26 @@ class SaaSProjectFinderScheduler:
 
         except Exception as e:
             logger.error("Periodic ranking update failed", error=str(e))
+
+    async def daily_report_email(self):
+        """Generate and send daily report email."""
+
+        logger.info("Starting daily report email generation")
+
+        try:
+            async with self.session_factory() as session:
+                email_service = EmailNotificationService(session)
+
+                # Send daily report
+                success = await email_service.send_daily_report()
+
+                if success:
+                    logger.info("Daily report email sent successfully")
+                else:
+                    logger.error("Failed to send daily report email")
+
+        except Exception as e:
+            logger.error("Daily report email generation failed", error=str(e))
 
     async def weekly_report_generation(self):
         """Generate and send weekly report."""

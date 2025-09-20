@@ -381,7 +381,7 @@ OUTPUT REQUIREMENTS:
                     "type": "string",
                     "enum": ["standard", "high-volume", "comprehensive"],
                     "description": "Scanning volume mode",
-                    "default": "high-volume"
+                    "default": "comprehensive"
                 },
                 "timeframe": {"type": "string", "enum": ["day", "week", "month"], "default": "week"},
                 "min_engagement": {"type": "integer", "description": "Minimum engagement threshold", "default": 5},
@@ -394,8 +394,8 @@ OUTPUT REQUIREMENTS:
                 "max_ideas_per_platform": {
                     "type": "integer",
                     "description": "Maximum ideas to extract per platform",
-                    "default": 20,
-                    "minimum": 10,
+                    "default": 25,
+                    "minimum": 15,
                     "maximum": 50
                 }
             },

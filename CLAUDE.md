@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code when working with this repository.
 
+## IMPORTANT CODING STANDARDS
+
+### API Testing and Examples
+
+- **NEVER use curl commands** - Always use Python with httpx for API testing
+- **NEVER include emojis** in code examples, API calls, or command outputs
+- **Always use Python async/await** patterns for HTTP requests
+- **Use httpx.AsyncClient()** for all HTTP operations
+
 ## Project Overview
 
 This is a centralized AI Python multi-tenant backend that serves multiple Next.js SaaS projects through pre-configured AI agents. The backend handles all AI agent logic while frontends make simple API calls.
@@ -110,6 +119,8 @@ MCP server starts automatically with `docker-compose up --build` on port 8080.
 
 **Available tools:** search_producthunt, search_reddit_startups, search_hackernews, analyze_market_size, analyze_competition, check_domain_availability, analyze_google_trends
 
+**High-Volume Scanning:** The main saas-trend-scanner agent is configured for high-volume discovery by default (10-25 ideas per scan). No separate scripts needed.
+
 ## Multi-Tenancy
 
 - API key-based tenant isolation
@@ -133,12 +144,22 @@ Agents configured in `src/agents/config.py`:
 **IMPORTANT: Keep code simple and clean - don't overcomplicate things**
 
 **Before writing new code:**
+
 1. **Check if functionality already exists** - Search codebase first
 2. **Use existing patterns** - Follow established conventions
 3. **Prefer editing over creating** - Modify existing files when possible
 4. **Keep it simple** - Avoid complex solutions when simple ones work
 
+**API Communication Standards (STRICTLY ENFORCED):**
+
+- **NEVER use curl commands** - Always use Python httpx
+- **NEVER include emojis** in API calls
+- **Always use async/await** for HTTP operations
+- **Use httpx.AsyncClient()** for all API calls
+- **Provide complete Python examples** for all API interactions
+
 **Type Checking (REQUIRED):**
+
 - All code must pass `./venv-python -m pyright src/`
 - Use proper type hints for all functions
 - Import from `typing` module for complex types
@@ -146,6 +167,12 @@ Agents configured in `src/agents/config.py`:
 
 **Virtual Environment:**
 Always use `./venv-python` wrapper script.
+
+**Output Standards:**
+
+- No emojis in or API calls
+- Use plain text for all technical documentation
+- Focus on functionality over visual formatting
 
 ## Environment Variables
 

@@ -470,6 +470,247 @@ This report is automatically generated weekly based on trending discussions acro
                         error=str(e))
             # Don't raise - email was sent successfully
 
+    async def send_daily_report(self, recipients: Optional[List[str]] = None) -> bool:
+        """Send daily report email with new ideas from today."""
+
+        try:
+            # Get today's date
+            today = date.today()
+
+            # Get ideas discovered today
+            today_start = datetime.combine(today, datetime.min.time())
+            today_end = datetime.combine(today, datetime.max.time())
+
+            new_ideas_query = (
+                select(SaaSProjectIdeaModel)
+                .where(
+                    SaaSProjectIdeaModel.discovered_at >= today_start,
+                    SaaSProjectIdeaModel.discovered_at <= today_end,
+                    SaaSProjectIdeaModel.is_active == True
+                )
+            )
+            result = await self.db_session.execute(new_ideas_query)
+            new_ideas = result.scalars().all()
+
+            if not new_ideas:
+                logger.info("No new ideas discovered today, skipping daily report")
+                return True
+
+            # Get ranked analysis for today's ideas
+            ranked_ideas = []
+            for idea in new_ideas:
+                if idea.analysis_data and isinstance(idea.analysis_data, dict):
+                    ai_score = idea.analysis_data.get('ai_suitability_score', 0)
+                    ranked_ideas.append({
+                        'title': idea.title,
+                        'description': idea.description,
+                        'source_platform': idea.source_platform,
+                        'source_url': idea.source_url,
+                        'ai_score': ai_score,
+                        'discovered_at': idea.discovered_at,
+                        'analysis': idea.analysis_data
+                    })
+
+            # Sort by AI suitability score
+            ranked_ideas.sort(key=lambda x: x['ai_score'], reverse=True)
+
+            # Create email content
+            html_content = self._create_daily_html_email(today, ranked_ideas)
+            text_content = self._create_daily_text_email(today, ranked_ideas)
+
+            # Send email
+            recipients = recipients or self.default_recipients
+            success = await self._send_email(
+                recipients=recipients,
+                subject=f"Daily SaaS Ideas Report - {today.strftime('%B %d, %Y')} ({len(ranked_ideas)} new ideas)",
+                html_content=html_content,
+                text_content=text_content
+            )
+
+            logger.info("Daily report email sent",
+                       date=today,
+                       ideas_count=len(ranked_ideas),
+                       success=success)
+
+            return success
+
+        except Exception as e:
+            logger.error("Failed to send daily report", error=str(e))
+            return False
+
+    def _create_daily_html_email(self, report_date: date, ranked_ideas: List[Dict[str, Any]]) -> str:
+        """Create HTML email content for daily report."""
+
+        high_priority = [idea for idea in ranked_ideas if idea['ai_score'] >= 75]
+        medium_priority = [idea for idea in ranked_ideas if 60 <= idea['ai_score'] < 75]
+        low_priority = [idea for idea in ranked_ideas if idea['ai_score'] < 60]
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .header {{ background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; text-align: center; }}
+                .content {{ padding: 20px; }}
+                .idea-card {{ border: 1px solid #ddd; margin: 15px 0; padding: 15px; border-radius: 8px; }}
+                .priority-high {{ border-left: 4px solid #28a745; }}
+                .priority-medium {{ border-left: 4px solid #ffc107; }}
+                .priority-low {{ border-left: 4px solid #6c757d; }}
+                .score-badge {{ display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; }}
+                .score-high {{ background-color: #28a745; }}
+                .score-medium {{ background-color: #ffc107; color: #333; }}
+                .score-low {{ background-color: #6c757d; }}
+                .summary {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; }}
+                .footer {{ text-align: center; padding: 20px; color: #666; font-size: 0.9em; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Daily SaaS Ideas Report</h1>
+                <p>{report_date.strftime('%A, %B %d, %Y')}</p>
+            </div>
+
+            <div class="content">
+                <div class="summary">
+                    <h2>Daily Summary</h2>
+                    <ul>
+                        <li><strong>{len(ranked_ideas)}</strong> new ideas discovered today</li>
+                        <li><strong>{len(high_priority)}</strong> high-priority ideas (AI score ≥75)</li>
+                        <li><strong>{len(medium_priority)}</strong> medium-priority ideas (AI score 60-74)</li>
+                        <li><strong>{len(low_priority)}</strong> lower-priority ideas (AI score <60)</li>
+                    </ul>
+                </div>
+        """
+
+        if high_priority:
+            html += "<h2>🔥 High Priority Ideas (AI Score ≥75)</h2>"
+            for idea in high_priority:
+                html += self._format_daily_idea_html(idea, "high", "priority-high")
+
+        if medium_priority:
+            html += "<h2>⭐ Medium Priority Ideas (AI Score 60-74)</h2>"
+            for idea in medium_priority:
+                html += self._format_daily_idea_html(idea, "medium", "priority-medium")
+
+        if low_priority:
+            html += "<h2>📝 Other Ideas (AI Score <60)</h2>"
+            for idea in low_priority:
+                html += self._format_daily_idea_html(idea, "low", "priority-low")
+
+        html += """
+                <div class="footer">
+                    <p>Generated by SaaS Project Finder AI Backend</p>
+                    <p>This daily report includes all new ideas discovered in the last 24 hours with AI analysis and ranking.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        return html
+
+    def _format_daily_idea_html(self, idea: Dict[str, Any], priority: str, css_class: str) -> str:
+        """Format a single idea for daily HTML email."""
+
+        score_class = f"score-{priority}"
+        analysis = idea.get('analysis', {})
+
+        return f"""
+            <div class="idea-card {css_class}">
+                <h3>{idea['title']}
+                    <span class="score-badge {score_class}">AI Score: {idea['ai_score']:.0f}/100</span>
+                </h3>
+                <p>{idea['description']}</p>
+
+                <p><strong>Analysis Summary:</strong></p>
+                <ul>
+                    <li><strong>Market Potential:</strong> {analysis.get('market_potential', 'Not analyzed')}</li>
+                    <li><strong>AI Implementation:</strong> {analysis.get('ai_implementation_notes', 'Not analyzed')}</li>
+                    <li><strong>Competition Level:</strong> {analysis.get('competition_analysis', 'Not analyzed')}</li>
+                    <li><strong>Revenue Potential:</strong> {analysis.get('monetization_potential', 'Not analyzed')}</li>
+                </ul>
+
+                <p><strong>Source:</strong> {idea['source_platform'].title()} -
+                   <a href="{idea.get('source_url', '#')}">View Original</a></p>
+                <p><small>Discovered: {idea['discovered_at'].strftime('%I:%M %p UTC')}</small></p>
+            </div>
+        """
+
+    def _create_daily_text_email(self, report_date: date, ranked_ideas: List[Dict[str, Any]]) -> str:
+        """Create plain text email content for daily report."""
+
+        high_priority = [idea for idea in ranked_ideas if idea['ai_score'] >= 75]
+        medium_priority = [idea for idea in ranked_ideas if 60 <= idea['ai_score'] < 75]
+        low_priority = [idea for idea in ranked_ideas if idea['ai_score'] < 60]
+
+        text = f"""
+DAILY SAAS IDEAS REPORT
+{report_date.strftime('%A, %B %d, %Y')}
+
+DAILY SUMMARY
+=============
+- {len(ranked_ideas)} new ideas discovered today
+- {len(high_priority)} high-priority ideas (AI score ≥75)
+- {len(medium_priority)} medium-priority ideas (AI score 60-74)
+- {len(low_priority)} lower-priority ideas (AI score <60)
+
+"""
+
+        if high_priority:
+            text += """
+HIGH PRIORITY IDEAS (AI Score ≥75)
+===================================
+"""
+            for idea in high_priority:
+                text += self._format_daily_idea_text(idea)
+
+        if medium_priority:
+            text += """
+MEDIUM PRIORITY IDEAS (AI Score 60-74)
+=======================================
+"""
+            for idea in medium_priority:
+                text += self._format_daily_idea_text(idea)
+
+        if low_priority:
+            text += """
+OTHER IDEAS (AI Score <60)
+==========================
+"""
+            for idea in low_priority:
+                text += self._format_daily_idea_text(idea)
+
+        text += """
+---
+Generated by SaaS Project Finder AI Backend
+This daily report includes all new ideas discovered in the last 24 hours with AI analysis and ranking.
+"""
+
+        return text
+
+    def _format_daily_idea_text(self, idea: Dict[str, Any]) -> str:
+        """Format a single idea for daily text email."""
+
+        analysis = idea.get('analysis', {})
+
+        return f"""
+{idea['title']} (AI Score: {idea['ai_score']:.0f}/100)
+{'-' * 50}
+{idea['description']}
+
+Analysis Summary:
+- Market Potential: {analysis.get('market_potential', 'Not analyzed')}
+- AI Implementation: {analysis.get('ai_implementation_notes', 'Not analyzed')}
+- Competition Level: {analysis.get('competition_analysis', 'Not analyzed')}
+- Revenue Potential: {analysis.get('monetization_potential', 'Not analyzed')}
+
+Source: {idea['source_platform'].title()} - {idea.get('source_url', 'N/A')}
+Discovered: {idea['discovered_at'].strftime('%I:%M %p UTC')}
+
+"""
+
     async def send_immediate_alert(self, idea: Dict[str, Any], alert_type: str = "high_potential") -> bool:
         """Send immediate alert for exceptional SaaS ideas."""
 
