@@ -20,7 +20,8 @@
       "Bash(./venv-python -m pyright src/ --level error)",
       "Bash(timeout:*)",
       "Bash(./venv-python:*)",
-      "Bash(docker system prune:*)"
+      "Bash(docker system prune:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

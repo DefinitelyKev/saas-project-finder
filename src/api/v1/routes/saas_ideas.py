@@ -422,9 +422,14 @@ async def get_scheduler_status(
     """Get scheduler status and job information."""
 
     try:
-        global scheduler
+        from fastapi import Request
+        from src.main import app
+
+        # Get scheduler from app state
+        scheduler = getattr(app.state, 'scheduler', None)
+
         if not scheduler:
-            # Initialize scheduler if not already done
+            # Create a temporary scheduler to get status
             session_factory = get_async_session_factory()
             scheduler = SaaSProjectFinderScheduler(session_factory)
 
